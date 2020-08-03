@@ -1,5 +1,5 @@
 # alpine-imager
-Alpine Linux images for Raspberry Pi, ARM, and other embedded systems
+Alpine Linux images for Raspberry Pi, VMware, Xen, and other systems
 
 # How to Use
 * Grab the appropriate image from releases. 
