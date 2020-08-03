@@ -1,0 +1,14 @@
+language: shell
+os: linux
+dist: bionic
+services:
+  - docker
+
+arch:
+  - amd64
+stages:
+  - name: test
+
+script:
+  - env
+  - script/workflow_test.sh
