@@ -26,24 +26,24 @@ jobs:
       id: image_build
       run: |
         ${GITHUB_WORKSPACE}/build_images.sh ${GITHUB_WORKSPACE}/conf/release.conf
-    - name: Check directories??
-      id: check
-      run: |
-        echo "workspace ${GITHUB_WORKSPACE}" 
-        echo "pwd $(pwd)"
-        ls -l ${GITHUB_WORKSPACE}/image/
-        ls -l ${GITHUB_WORKSPACE}/artifact/
+#    - name: Check directories??
+#      id: check
+#      run: |
+#        echo "workspace ${GITHUB_WORKSPACE}" 
+#        echo "pwd $(pwd)"
+#        ls -l ${GITHUB_WORKSPACE}/image/
+#        ls -l ${GITHUB_WORKSPACE}/artifact/
     - name: Upload log artifacts
       id: artifact_logs
       uses: actions/upload-artifact@v2
       with:
         name: logs
-        path: ${GITHUB_WORKSPACE}/**/*log
+        path: ${{ github.workspace }}/**/*log
     - name: Upload image artifacts
       id: artifact_images
       uses: actions/upload-artifact@v2
       with:
         name: images
-        path: ${GITHUB_WORKSPACE}/**/*bz2
+        path: ${{ github.workspace}}/**/*bz2
 
 # vim:ft=yaml:sw=2:ts=2:et
