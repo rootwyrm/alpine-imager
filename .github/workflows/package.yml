@@ -17,6 +17,11 @@ jobs:
       uses: actions/checkout@v2
       with:
         submodules: true
+    - name: Create temporary directories
+      id: mkdir
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/image
+        mkdir ${GITHUB_WORKSPACE}/artifact
     - name: Build images
       id: image_build
       run: |
