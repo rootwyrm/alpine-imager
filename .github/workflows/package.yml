@@ -26,6 +26,13 @@ jobs:
       id: image_build
       run: |
         ${GITHUB_WORKSPACE}/build_images.sh ${GITHUB_WORKSPACE}/conf/release.conf
+    - name: Check directories??
+      id: check
+      run: |
+        echo "workspace ${GITHUB_WORKSPACE}" 
+        echo "pwd $(pwd)"
+        ls -l ${GITHUB_WORKSPACE}/image/
+        ls -l ${GITHUB_WORKSPACE}/artifact/
     - name: Upload log artifacts
       id: artifact_logs
       uses: actions/upload-artifact@v2
