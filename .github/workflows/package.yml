@@ -3,9 +3,8 @@ name: Alpine Image Builder
 on:
   push:
     branches:
+      - master
       - release/*
-    tags: 
-      - *
   repository_dispatch:
     types: [ buildimages ]
 
