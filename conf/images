@@ -1,0 +1,4 @@
+alpine-rpi:aarch64:3.11.6
+alpine-rpi:aarch64:3.12.0
+#alpine-rpi-uboot:aarch64:3.11.6:uboot
+#alpine-rpi-uboot:aarch64:3.12.0:uboot

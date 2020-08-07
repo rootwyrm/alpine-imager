@@ -1,0 +1,12 @@
+## Mandatory packages for an Ubuntu host or docker 
+apt-utils
+udev
+curl
+gpg
+parted
+dosfstools
+xfsprogs
+qemu-user
+qemu-user-static
+#gcc
+#ubuntu-dev-tools
