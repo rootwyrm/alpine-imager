@@ -50,10 +50,10 @@ RUN_VOLUME=/tmp/run
 IMAGE_VOLUME=${GITHUB_WORKSPACE}/image
 ARTIFACT_DIR=${GITHUB_WORKSPACE}/artifact
 
-docker image inspect image_builder > /dev/null
-if [ $? -ne 0 ]; then
-	docker build . -t image_builder
-fi
+#docker image inspect image_builder > /dev/null
+#if [ $? -ne 0 ]; then
+#	docker build . -t image_builder
+#fi
 
 for x in `cat $IMAGE_SET | grep -v '^#'`; do
 	IMAGE_NAME=$(echo $x | cut -d : -f 1)
@@ -61,7 +61,16 @@ for x in `cat $IMAGE_SET | grep -v '^#'`; do
 	IMAGE_VERSION=$(echo $x | cut -d : -f 3)
 	IMAGE_FILE=${IMAGE_NAME}-${IMAGE_ARCH}-${IMAGE_VERSION}.img
 	printf 'Firing %s %s %s %s\n' $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE
-	docker run --rm --volume /dev:/dev --volume /tmp/run:/run --volume $IMAGE_VOLUME:/image --volume ${GITHUB_WORKSPACE}/script:/opt/rootwyrm/bin --volume ${GITHUB_WORKSPACE}/conf:/opt/rootwyrm/conf --privileged --cap-add=ALL ubuntu:18.04 /opt/rootwyrm/bin/release.sh $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE
+	docker run --rm \
+		--volume /dev:/dev \
+		--volume /tmp/run:/run \
+		--volume $IMAGE_VOLUME:/image \
+		--volume ${GITHUB_WORKSPACE}/script:/opt/rootwyrm/bin \
+		--volume ${GITHUB_WORKSPACE}/conf:/opt/rootwyrm/conf \
+		--volume ${GITHUB_WORKSPACE}/extern:/opt/rootwyrm/extern \
+		--privileged --cap-add=ALL \
+		ubuntu:18.04 \
+		/opt/rootwyrm/bin/release.sh $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE
 	if [ $? -ne 0 ]; then
 		printf '[ERROR] Failed to build %s %s %s\n' "${IMAGE_NAME}" "${IMAGE_ARCH}" "${IMAGE_VERSION}"
 	else

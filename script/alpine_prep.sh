@@ -150,7 +150,8 @@ function prep_core()
 	printf 'Installing base software components... '
 	for bp in alpine-base openrc busybox-initscripts wpa_supplicant \
         wpa_supplicant-openrc openssh openssh-server openssh-server-common \
-        openssh-keygen sudo openssh-client e2fsprogs openntpd ; do
+        openssh-keygen sudo openssh-client e2fsprogs e2fsprogs-extra \
+		openntpd util-linux ; do
 		printf '%s ' $bp
 		chroot ${CHROOT} /sbin/apk add -q $bp
 		CHECK_ERROR $? apk_add_$bp
@@ -263,6 +264,31 @@ function prep_users()
 	printf 'Added alpi to /etc/sudoers\n' | tee -a ${logfile}
 }
 
+## The Special Sauce
+function prep_rootwyrm()
+{
+	local extern=/opt/rootwyrm/extern
+	## Do NOT forget growpart
+	if [ ! -f $CHROOT/usr/bin/growpart ]; then
+		if [ ! -f $extern/growpart ]; then
+			printf 'growpart is missing from extern!\n'
+			exit 255
+		else
+			cp $extern/growpart ${CHROOT}/usr/bin/
+			chown 0:0 ${CHROOT}/usr/bin/growpart
+			chmod +x ${CHROOT}/usr/bin/growpart
+		fi
+	fi
+	## Install our special sauce
+	sed -i -E 's/^.?rc_verbose/rc_verbose=yes/' $CHROOT/etc/rc.conf
+	if [ -f $extern/growfs ]; then
+		cp $extern/growfs $CHROOT/etc/rc.local/00-growfs.start
+		chown 0:0 $CHROOT/etc/rc.local/00-growfs.start
+		chmod +x $CHROOT/etc/rc.local/00-growfs.start
+		echo "growfs enabled" > $CHROOT/boot/growfs
+	fi
+}
+
 function prep_additional_packages()
 {
 	if [ -f /opt/rootwyrm/conf/alpine.pkg ]; then
@@ -277,6 +303,8 @@ function prep_additional_packages()
 			chroot ${CHROOT} /sbin/rc-update add $openrc $runlevel
 		fi
 	done
+	## Update rc-update to prevent a known issue
+	rc-update --update
 }
 
 printf '*** Entering alpine_prep %s %s...\n' "${IMAGE_VERSION}" "${IMAGE_ARCH}" | tee -a ${logfile}
@@ -285,6 +313,7 @@ prep_core
 prep_bootable
 prep_openrc
 prep_users
+prep_rootwyrm
 prep_additional_packages
 prep_fstab
 cat $CHROOT/etc/fstab

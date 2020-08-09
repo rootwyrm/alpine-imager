@@ -1,0 +1,107 @@
+#!/bin/bash
+################################################################################
+# 
+# Copyright (c) 2020-* Phillip R. Jaenke <prj@rootwyrm.com>. 
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without 
+# modification, are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice, 
+#    this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice, 
+#    this list of conditions and the following disclaimer in the documentation 
+#    and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software 
+#    must display the following acknowledgement:
+#    This product includes software developed by Phillip R. Jaenke.
+# 4. Neither the name of the copyright holder nor the names of its contributors 
+#    may be used to endorse or promote products derived from this software 
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY COPYRIGHT HOLDER "AS IS" AND ANY EXPRESS OR 
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO 
+# EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
+# OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
+# OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+#
+################################################################################
+##
+## filesystem growing script for Alpine Linux
+## goes in /etc/local.d/00-growfs.start
+##
+
+runcheck()
+{
+	if [ $0 != '00-growfs.start' ] || [ $0 != '/etc/local.d/00-growfs.start' ]; then
+		printf 'Called incorrectly, refusing to run.\n'
+		exit 255
+	fi
+
+	## Check if OK to run.
+	if [ -f /boot/growfs.disable ]; then
+		printf 'growfs disabled by /growfs.disable\n'
+		exit 0
+	elif [ ! -f /boot/growfs ]; then
+		## Nothing to do.
+		exit 0
+	fi
+}
+
+growroot()
+{
+	if [ ! -f /usr/bin/growpart ]; then
+		printf 'Could not find /usr/bin/growpart!\n'
+		exit 255
+	fi
+	## Determine our root device
+	local ROOTDEV=$(blkid -l -t LABEL=alpine | cut -d : -f 1)
+	if [ ! -f /usr/sbin/partx ]; then
+		local GROWARGS="${ROOTDEV} 2"
+	else
+		local GROWARGS="--update ${ROOTDEV} 2"
+	fi
+	/usr/bin/growpart --dry-run $GROWARGS
+	if [ $? -ne 0 ]; then
+		RC=$?
+		printf 'Dry-run failed! Refusing to wreck your data. ERROR %s\n' "$RC"
+		rm /boot/growfs
+		exit $RC
+	fi
+	/usr/bin/growpart $GROWARGS
+	if [ $? -eq 0 ]; then
+		RC=$?
+		rm /boot/growfs
+		printf 'Successfully resized root filesystem\n'
+		exit 0
+	fi
+}
+
+usage()
+{
+	printf '00-growfs.start usage information:\n'
+	printf '\n'
+	printf '################################################################################\n'
+	printf 'To prevent the system from growing the root filesystem, create an empty file\n'
+	printf '    at /boot/growfs.disable by running "touch /boot/growfs.disable"\n'
+	printf '################################################################################\n'
+	printf '\n'
+	printf '################################################################################\n'
+	printf 'To ensure the filesystem is resized on the next boot, create a text or empty\n'
+	printf '    file at /boot/growfs by running "touch /boot/growfs" or using a text editor.\n'
+	printf '################################################################################\n'
+	printf '\n'
+	exit 0
+}
+
+if [ -t 0 ]; then
+	usage
+else   
+	runcheck
+	growroot
+fi
