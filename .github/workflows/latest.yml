@@ -41,7 +41,7 @@ jobs:
     - name: Build ${{ matrix.release }} ${{ matrix.arch }}
       id: build
       run: |
-        ${GITHUB_WORKSPACE}/build_release.sh ${GITHUB_WORKSPACE}/conf/release.conf
+        ${GITHUB_WORKSPACE}/build_images.sh ${GITHUB_WORKSPACE}/conf/release.conf
     - name: Release latest
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
