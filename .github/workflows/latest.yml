@@ -14,11 +14,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         submodules: true
-    - name: Create temporary directories
-      id: create_directories
-      run: |
-        mkdir ${GITHUB_WORKSPACE}/artifact
-        mkdir ${GITHUB_WORKSPACE}/image
     - name: Create release Docker
       id: docker_build
       run: |
@@ -55,9 +50,9 @@ jobs:
         name: latest
         tag_name: latest
         fail_on_unmatched_files: true
+        body: Automatic release - ${{ github.sha }}
         files: |
           artifact/*img.gz
-          artifact/alpine-rpi-aarch64-3.11.6.img.gz
-          artifact/alpine-rpi-aarch64-3.12.0.img.gz
+          artifact/*img
 
 # vim:ft=yaml:sw=2:ts=2:et
