@@ -52,9 +52,9 @@ jobs:
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
-        prerelease: false
-        title: "Nightly images"
+        prerelease: true
+        title: "Latest images"
         files: |
-          ./image/*.img
+          image/*.img
 
 # vim:ft=yaml:sw=2:ts=2:et
