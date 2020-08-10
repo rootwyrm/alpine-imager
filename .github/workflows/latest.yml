@@ -27,6 +27,7 @@ jobs:
   build:
     name: "Build images"
     needs: prepare
+    runs-on: ubuntu-latest
     #strategy:
     #  matrix:
     #    releases: [ "3.11.6", "3.12.0" ]
