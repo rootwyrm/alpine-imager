@@ -54,22 +54,22 @@ jobs:
 #          Fully automatic - ${{ github.ref }}
 #        draft: false
 #        prerelease: false
-    - run: |
-        export TEXT="rolling"
-        echo "::set-env name=RELEASE_NAME::$TEXT"
-    - name: Upload release 
-      id: upload_release
-      uses: docker://antonyurchenko/git-release:latest
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        CRAFT_RELEASE: "false"
-        PRE_RELEASE: "false"
-        CHANGELOG_FILE: "CHANGELOG.md"
-        ALLOW_EMPTY_CHANGELOG: "true"
-        ALLOW_TAG_PREFIX: "true"
-      with:
-        args: |
-          ./image/alpine-rpi-aarch64-3.11.6.img
-          ./image/alpine-rpi-aarch64-3.12.0.img
+#    - run: |
+#        export TEXT="rolling"
+#        echo "::set-env name=RELEASE_NAME::$TEXT"
+#    - name: Upload release 
+#      id: upload_release
+#      uses: docker://antonyurchenko/git-release:latest
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        CRAFT_RELEASE: "false"
+#        PRE_RELEASE: "false"
+#        CHANGELOG_FILE: "CHANGELOG.md"
+#        ALLOW_EMPTY_CHANGELOG: "true"
+#        ALLOW_TAG_PREFIX: "true"
+#      with:
+#        args: |
+#          ./image/alpine-rpi-aarch64-3.11.6.img
+#          ./image/alpine-rpi-aarch64-3.12.0.img
 
 # vim:ft=yaml:sw=2:ts=2:et

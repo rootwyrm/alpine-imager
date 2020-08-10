@@ -54,6 +54,8 @@ jobs:
       with:
         name: latest
         tag_name: latest
-        files: image/*img
+        files: |
+          image/*img
+          image/*img.gz
 
 # vim:ft=yaml:sw=2:ts=2:et
