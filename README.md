@@ -1,6 +1,8 @@
 # alpine-imager
 Alpine Linux images for Raspberry Pi, VMware, Xen, and other systems
 
+![Alpine Image Builder - Latest](https://github.com/rootwyrm/alpine-imager/workflows/Alpine%20Image%20Builder%20-%20Latest/badge.svg)
+
 # How to Use
 * Grab the appropriate image from releases. This uses a rolling release model.
 * Write the image to your media using your favorite tool.
