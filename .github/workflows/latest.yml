@@ -54,8 +54,10 @@ jobs:
       with:
         name: latest
         tag_name: latest
+        fail_on_unmatched_files: true
         files: |
-          image/*img
-          image/*img.gz
+          artifact/*img.gz
+          artifact/alpine-rpi-aarch64-3.11.6.img.gz
+          artifact/alpine-rpi-aarch64-3.12.0.img.gz
 
 # vim:ft=yaml:sw=2:ts=2:et
