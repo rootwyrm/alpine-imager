@@ -1,0 +1,50 @@
+name: Alpine Image Builder - Latest
+on:
+
+jobs:
+  prepare:
+    name: "Prepare Environment"
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out from head
+      id: checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Create temporary directories
+      id: create_directories
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/artifact
+        mkdir ${GITHUB_WORKSPACE}/image
+    - name: Create release Docker
+      id: docker_build
+      run: |
+        docker build imager --file docker/Dockerfile \
+        --pull --tag imager
+  build:
+    name: "Build images"
+    needs: prepare
+    #strategy:
+    #  matrix:
+    #    releases: [ "3.11.6", "3.12.0" ]
+    #    arch: [ aarch64, armhf, armv7 ]
+    - name: Check out from head
+      id: checkout
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Build ${{ matrix.release }} ${{ matrix.arch }}
+      id: build
+      run: |
+        ${GITHUB_WORKSPACE}/build_release.sh ${GITHUB_WORKSPACE}/conf/release.conf
+    - name: Release latest
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: false
+        title: "Nightly images"
+        files: |
+          ./image/*.img
+
+# vim:ft=yaml:sw=2:ts=2:et
