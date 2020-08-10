@@ -38,6 +38,11 @@ jobs:
       uses: actions/checkout@v2
       with:
         submodules: true
+    - name: Create storage directories
+      id: mkdir
+      run: |
+        mkdir ${GITHUB_WORKSPACE}/artifact
+        mkdir ${GITHUB_WORKSPACE}/image
     - name: Build ${{ matrix.release }} ${{ matrix.arch }}
       id: build
       run: |
