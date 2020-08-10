@@ -25,7 +25,6 @@ jobs:
   build:
     name: "Build images"
     needs: prepare
-    runs-on: ubuntu-latest
     #strategy:
     #  matrix:
     #    releases: [ "3.11.6", "3.12.0" ]
@@ -41,6 +40,7 @@ jobs:
       run: |
         ${GITHUB_WORKSPACE}/build_release.sh ${GITHUB_WORKSPACE}/conf/release.conf
     - name: Release latest
+      uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         automatic_release_tag: "latest"
