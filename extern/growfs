@@ -38,17 +38,13 @@
 
 runcheck()
 {
-	if [ $0 != '00-growfs.start' ] || [ $0 != '/etc/local.d/00-growfs.start' ]; then
-		printf 'Called incorrectly, refusing to run.\n'
-		exit 255
-	fi
-
 	## Check if OK to run.
 	if [ -f /boot/growfs.disable ]; then
-		printf 'growfs disabled by /growfs.disable\n'
+		echo "growfs disabled by /growfs.disable"
 		exit 0
 	elif [ ! -f /boot/growfs ]; then
-		## Nothing to do.
+		## Nothing to do, but print help.
+		usage
 		exit 0
 	fi
 }
@@ -61,10 +57,11 @@ growroot()
 	fi
 	## Determine our root device
 	local ROOTDEV=$(blkid -l -t LABEL=alpine | cut -d : -f 1)
+	local ROOTDISK=$(echo $ROOTDEV | cut -d p -f 1)
 	if [ ! -f /usr/sbin/partx ]; then
-		local GROWARGS="${ROOTDEV} 2"
+		local GROWARGS="${ROOTDISK} 2"
 	else
-		local GROWARGS="--update ${ROOTDEV} 2"
+		local GROWARGS="--update=auto ${ROOTDISK} 2"
 	fi
 	/usr/bin/growpart --dry-run $GROWARGS
 	if [ $? -ne 0 ]; then
@@ -74,10 +71,19 @@ growroot()
 		exit $RC
 	fi
 	/usr/bin/growpart $GROWARGS
-	if [ $? -eq 0 ]; then
+	if [ $? -ne 0 ]; then
 		RC=$?
-		rm /boot/growfs
+		printf 'Resizing failed! Your data may be corrupted! ERROR %s\n' "$RC"
+		exit $RC
+	fi
+	resize2fs $ROOTDEV
+	if [ $? -ne 0 ]; then
+		RC=$?
+		printf 'Error resizing root filesystem: ERROR %s\n' "$RC"
+		exit $RC
+	else
 		printf 'Successfully resized root filesystem\n'
+		rm /boot/growfs
 		exit 0
 	fi
 }
@@ -99,7 +105,7 @@ usage()
 	exit 0
 }
 
-if [ -t 0 ]; then
+if [ ! -z $1 ]; then
 	usage
 else   
 	runcheck

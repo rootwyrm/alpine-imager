@@ -96,6 +96,7 @@ function prep_core()
 		arm*|aarch*)
 			BOOTPKG=${BOOTPKG:-raspberrypi-bootloader}
 			KERNEL=${KERNEL:-linux-rpi4}
+			KERNEL+=" linux-rpi"
 			;;
 		*)
 			BOOTPKG=${BOOTPKG:-grub2}
@@ -209,7 +210,7 @@ iface wlan0 inet manual
 EOF
 
 	## Fix SSH
-	sed -i -E 's/^.?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+	sed -i -E 's/^.?PermitRootLogin.*/PermitRootLogin prohibit-password/' $CHROOT/etc/ssh/sshd_config
 	printf 'NOTICE: sshd will permit root login only with an authorized key!\n'
 }
 
@@ -244,6 +245,7 @@ function prep_openrc()
 
 function prep_users()
 {
+	SHORTVER=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2 | sed -e 's/\.//')
 	ROOT_PASSWD=${ROOT_PASSWD:-Alp!n3}
 	printf 'Setting root password to %s\n' "${ROOT_PASSWD}" | tee -a ${logfile}
 	echo -e "${ROOT_PASSWD}\n${ROOT_PASSWD}" | chroot ${CHROOT} /usr/bin/passwd -a sha512 root
@@ -282,11 +284,12 @@ function prep_rootwyrm()
 	## Install our special sauce
 	sed -i -E 's/^.?rc_verbose/rc_verbose=yes/' $CHROOT/etc/rc.conf
 	if [ -f $extern/growfs ]; then
-		cp $extern/growfs $CHROOT/etc/rc.local/00-growfs.start
-		chown 0:0 $CHROOT/etc/rc.local/00-growfs.start
-		chmod +x $CHROOT/etc/rc.local/00-growfs.start
+		cp $extern/growfs $CHROOT/etc/local.d/00-growfs.start
+		chown 0:0 $CHROOT/etc/local.d/00-growfs.start
+		chmod +x $CHROOT/etc/local.d/00-growfs.start
 		echo "growfs enabled" > $CHROOT/boot/growfs
 	fi
+	chroot ${CHROOT} /sbin/rc-update add local default
 }
 
 function prep_additional_packages()
@@ -304,7 +307,7 @@ function prep_additional_packages()
 		fi
 	done
 	## Update rc-update to prevent a known issue
-	rc-update --update
+	chroot $CHROOT /sbin/rc-update --update
 }
 
 printf '*** Entering alpine_prep %s %s...\n' "${IMAGE_VERSION}" "${IMAGE_ARCH}" | tee -a ${logfile}
