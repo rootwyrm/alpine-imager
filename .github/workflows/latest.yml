@@ -22,7 +22,7 @@ jobs:
     - name: Create release Docker
       id: docker_build
       run: |
-        docker build imager --file docker/Dockerfile \
+        docker build docker --file docker/Dockerfile \
         --pull --tag imager
   build:
     name: "Build images"
