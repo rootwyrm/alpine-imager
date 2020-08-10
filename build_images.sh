@@ -76,6 +76,6 @@ for x in `cat $IMAGE_SET | grep -v '^#'`; do
 	else
 		mv ${IMAGE_VOLUME}/${IMAGE_FILE} ${ARTIFACT_DIR}/
 		## XXX need a log publish step
-		#gzip ${ARTIFACT_DIR}/${IMAGE_FILE}
+		gzip ${ARTIFACT_DIR}/${IMAGE_FILE}
 	fi
 done
