@@ -48,13 +48,12 @@ jobs:
       run: |
         ${GITHUB_WORKSPACE}/build_images.sh ${GITHUB_WORKSPACE}/conf/release.conf
     - name: Release latest
-      uses: "marvinpinto/action-automatic-releases@latest"
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        prerelease: true
-        title: "Latest images"
-        files: |
-          image/*.img
+        name: latest
+        tag_name: latest
+        files: image/*img
 
 # vim:ft=yaml:sw=2:ts=2:et
