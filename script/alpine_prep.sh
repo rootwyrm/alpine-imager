@@ -61,26 +61,26 @@ function prep_fstab()
 	#sed -i -E '1 i UUID='${ROOTUUID}'\t/\text4\tdefaults\t0 0' ${CHROOT}/etc/fstab
 
 	## Switch around architecture
-	case ${IMAGE_ARCH} in
-		arm*|aarch*)
-			#echo ${CHROOT}/etc/fstab
-			echo "UUID=${ROOTUUID}        /       ext4    defaults    0 0" > ${CHROOT}/etc/fstab
-			echo "UUID=${BOOTUUID}        /media/mmcblk0p1    vfat    defaults    0 0" >> ${CHROOT}/etc/fstab
-			echo "## DO NOT MODIFY THIS SECTION" >> ${CHROOT}/etc/fstab
-			echo "/media/mmcblk0p1                    /boot           none    defaults,bind   0 0" >> ${CHROOT}/etc/fstab
-			echo "/media/mmcblk0p1/dtbs-rpi4/overlays /boot/overlays  none    defaults,bind   0 0" >> ${CHROOT}/etc/fstab
-			echo "## ADD ANY CUSTOM ENTRIES AFTER THIS POINT" >> ${CHROOT}/etc/fstab
-			echo "" >> ${CHROOT}/etc/fstab
-			echo "/dev/usbdisk    /media/usb      vfat    noauto  0 0" >> ${CHROOT}/etc/fstab
-			#overlay     /media/mmcblk0p1    lowerdir=/media/mmcblk0p1/dtbs-lts:/media/mmcblk0p1/dtbs-rpi:/media/mmcblk0p1/dtbs-rpi4,upperdir=/media/mmcblk0p1/upper,workdir=/media/mmcblk0p1/work   0 0
+	local FSTAB=${CHROOT}/etc/fstab
+	echo "UUID=${ROOTUUID}	/	ext4	defaults	0 0" > $FSTAB
+	echo "UUID=${BOOTUUID}		/media/mmcblk0p1	vfat	defaults	0 0" >> $FSTAB
+	echo "## DO NOT MODIFY THIS SECTION" >> $FSTAB
+	echo "/media/mmcblk0p1	/boot	none	defaults,bind	0 0" >> $FSTAB
+	case ${PLATFORM} in
+		rpi)
+			echo "/media/mmcblk0p1/dtbs-rpi/overlays	/boot/overlays	none	defaults,bind	0 0" >> $FSTAB
+			;;
+		rpi4)
+			echo "/media/mmcblk0p1/dtbs-rpi4/overlays	/boot/overlays	none	defaults,bind	0 0" >> $FSTAB
 			;;
 		*)
-			cat /dev/null > ${CHROOT}/etc/fstab
-			echo "UUID=${ROOTUUID}        /       ext4    defaults    0 0" > ${CHROOT}/etc/fstab
-			echo "UUID=${BOOTUUID}        /boot   ext2    defaults    0 0" >> ${CHROOT}/etc/fstab
-			echo "/dev/usbdisk    /media/usb      vfat    noauto      0 0" >> ${CHROOT}/etc/fstab
+			## Do nothing
 			;;
 	esac
+	echo "## ADD ANY CUSTOM ENTRIES AFTER THIS POINT" >> $FSTAB
+	echo "" >> $FSTAB
+	echo "/dev/usbdisk    /media/usb      vfat    noauto  0 0" >> $FSTAB
+	#overlay     /media/mmcblk0p1    lowerdir=/media/mmcblk0p1/dtbs-lts:/media/mmcblk0p1/dtbs-rpi:/media/mmcblk0p1/dtbs-rpi4,upperdir=/media/mmcblk0p1/upper,workdir=/media/mmcblk0p1/work   0 0
 }
 
 ## Install the core packages we literally cannot function without.
@@ -92,17 +92,21 @@ function prep_core()
 	printf 'Installing the latest security fixes...\n'
 	chroot ${CHROOT} /sbin/apk upgrade
 	CHECK_ERROR $? prep_core_apk_upgrade
-	case ${IMAGE_ARCH} in
-		arm*|aarch*)
+	case ${PLATFORM} in
+		rpi)
+			BOOTPKG=${BOOTPKG:-raspberrypi-bootloader}
+			KERNEL=${KERNEL:-linux-rpi}
+			;;
+		rpi4)
 			BOOTPKG=${BOOTPKG:-raspberrypi-bootloader}
 			KERNEL=${KERNEL:-linux-rpi4}
-			KERNEL+=" linux-rpi"
 			;;
-		*)
+		aarch64)
 			BOOTPKG=${BOOTPKG:-grub2}
 			KERNEL=${KERNEL:-linux-lts}
 			;;
 	esac
+
 	printf 'Installing kernel and bootloader... \n'
 	for p in $KERNEL ; do
 		printf 'KERNEL: %s \n' $p
@@ -114,39 +118,41 @@ function prep_core()
 		chroot ${CHROOT} /sbin/apk -q add $p
 		CHECK_ERROR $? apk_add_$p
 	done
-	
-	case ${IMAGE_ARCH} in
-		arm*|aarch*)
-			## Relocate the DTBs...
-			if [ ! -d ${CHROOT}/boot/overlays ]; then
-				mkdir ${CHROOT}/boot/overlays
-				chown 0:0 ${CHROOT}/boot/overlays
-			fi
-			## DANGER!! rpi must go before rpi4!
-			for dtb_dir in dtbs-brcm dtbs-rpi dtbs-rpi4; do
-				if [ -d ${CHROOT}/boot/$dtb_dir ]; then
-					printf 'Relocating DTBs from %s ' $dtb_dir
-					for dtb in `ls ${CHROOT}/boot/$dtb_dir/*dtb`; do
-						mv $dtb ${CHROOT}/boot/${dtb##*/}
-						printf '.'
-					done
-					printf 'DONE\n'
-				fi
-				if [ -d ${CHROOT}/boot/$dtb_dir/overlays ]; then
-					printf 'Relocating %s overlays ' "$dtb_dir"
-					for dtb in `ls ${CHROOT}/boot/$dtb_dir/overlays/*dtbo`; do
-						mv $dtb ${CHROOT}/boot/overlays/${dtb##*/}
-						printf '.'
-					done
-					printf 'DONE\n'
-				fi
-			done
+
+	## Rewritten for platform
+	if [ ! -d ${CHROOT}/boot/overlays ]; then
+		mkdir ${CHROOT}/boot/overlays
+		chown 0:0 ${CHROOT}/boot/overlays
+	fi
+
+	case ${PLATFORM} in
+		rpi)
+			DTBS="dtbsd-bcrm dtbs-rpi"
 			;;
-		*)
-			## Nothing to do here.
-			echo "" > /dev/null
+		rpi4)
+			DTBS="dtbsd-bcrm dtbs-rpi4"
+			;;
+		aarch64)
 			;;
 	esac
+	for dtb_dir in $DTBS; do
+		if [ -d ${CHROOT}/boot/$dtb_dir ]; then
+			printf 'Relocating DTBs from %s ' $dtb_dir
+			for dtb in `ls ${CHROOT}/boot/$dtb_dir/*dtb`; do
+				mv $dtb ${CHROOT}/boot/${dtb##*/}
+				printf '.'
+			done
+			printf 'Complete\n'
+		fi
+		if [ -d ${CHROOT}/boot/$dtb_dir/overlays ]; then
+			printf 'Relocating %s overlays ' "$dtb_dir"
+			for dtbo in `ls ${CHROOT}/boot/$dtb_dir/overlays/*dtbo`; do
+				mv $dtbo ${CHROOT}/boot/overlays/${dtbo##*/}
+				printf '.'
+			done
+			printf 'Complete\n'
+		fi
+	done
 
 	printf 'Installing base software components... '
 	for bp in alpine-base openrc busybox-initscripts wpa_supplicant \

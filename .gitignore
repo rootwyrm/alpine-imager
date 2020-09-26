@@ -1,9 +1,9 @@
 ## Assembled from snippets...
 
 .sw*
-.sw*
-*/tmp/*
+*/tmp/**
 *tmp
+*/image/**
 
 # Packages #
 ############

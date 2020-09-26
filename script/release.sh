@@ -42,6 +42,7 @@ export IMAGE_NAME=$1
 export IMAGE_ARCH=$2
 export IMAGE_VERSION=$3
 export IMAGE_FILE=$4
+export PLATFORM=$5
 export CHROOT=${CHROOT:-/chroot}
 
 export logfile=/image/${IMAGE_FILE}.log

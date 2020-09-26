@@ -59,8 +59,10 @@ for x in `cat $IMAGE_SET | grep -v '^#'`; do
 	IMAGE_NAME=$(echo $x | cut -d : -f 1)
 	IMAGE_ARCH=$(echo $x | cut -d : -f 2)
 	IMAGE_VERSION=$(echo $x | cut -d : -f 3)
+	PLATFORM=$(echo $x | cut -d : -f 4)
+	export IMAGE_NAME IMAGE_ARCH IMAGE_VERSION PLATFORM
 	IMAGE_FILE=${IMAGE_NAME}-${IMAGE_ARCH}-${IMAGE_VERSION}.img
-	printf 'Firing %s %s %s %s\n' $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE
+	printf 'Firing %s %s %s %s %s\n' $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE $PLATFORM
 	docker run --rm \
 		--volume /dev:/dev \
 		--volume /tmp/run:/run \
@@ -70,7 +72,7 @@ for x in `cat $IMAGE_SET | grep -v '^#'`; do
 		--volume ${GITHUB_WORKSPACE}/extern:/opt/rootwyrm/extern \
 		--privileged --cap-add=ALL \
 		ubuntu:18.04 \
-		/opt/rootwyrm/bin/release.sh $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE
+		/opt/rootwyrm/bin/release.sh $IMAGE_NAME $IMAGE_ARCH $IMAGE_VERSION $IMAGE_FILE $PLATFORM
 	if [ $? -ne 0 ]; then
 		printf '[ERROR] Failed to build %s %s %s\n' "${IMAGE_NAME}" "${IMAGE_ARCH}" "${IMAGE_VERSION}"
 	else
