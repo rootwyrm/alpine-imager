@@ -53,6 +53,6 @@ jobs:
         body: Automatic release - ${{ github.sha }}
         files: |
           artifact/*img.gz
-          artifact/*img
+          #artifact/*img
 
 # vim:ft=yaml:sw=2:ts=2:et
