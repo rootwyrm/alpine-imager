@@ -267,7 +267,7 @@ function prep_users()
 	CHECK_ERROR $? "alpi password"
 
 	## Add alpi to sudoers
-	sed -i -E '/#includedir/ i alpi\tALL=(ALL)\tALL' ${CHROOT}/etc/sudoers
+	sed -i -E '/root ALL/ i alpi\tALL=(ALL)\tALL' ${CHROOT}/etc/sudoers
 	CHECK_ERROR $? "alpi sudoer"
 	printf 'Added alpi to /etc/sudoers\n' | tee -a ${logfile}
 }
