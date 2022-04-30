@@ -252,7 +252,7 @@ function prep_openrc()
 function prep_users()
 {
 	SHORTVER=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2 | sed -e 's/\.//')
-	ROOT_PASSWD=${ROOT_PASSWD:-Alp!n3}
+	ROOT_PASSWD=${ROOT_PASSWD:-'Alp!n3'}
 	printf 'Setting root password to %s\n' "${ROOT_PASSWD}" | tee -a ${logfile}
 	echo -e "${ROOT_PASSWD}\n${ROOT_PASSWD}" | chroot ${CHROOT} /usr/bin/passwd -a sha512 root
 	CHECK_ERROR $? "root password"
