@@ -4,24 +4,8 @@ on:
     branches: [ master, develop ]
 
 jobs:
-  prepare:
-    name: "Prepare Environment"
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Check out from head
-      id: checkout
-      uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: Create release Docker
-      id: docker_build
-      run: |
-        docker build docker --file docker/Dockerfile \
-        --pull --tag imager
   build:
     name: "Build images"
-    needs: prepare
     runs-on: ubuntu-latest
     #strategy:
     #  matrix:

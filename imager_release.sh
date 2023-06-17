@@ -65,8 +65,7 @@ if [ ! -d $ARTIFACT_DIR ]; then
 	mkdir $ARTIFACT_DIR
 fi
 
-## Check if our imager is already built, it should be
-docker image inspect imager > /dev/null
+## Build our imager
 if [ $? -ne 0 ]; then
 	docker build docker --file docker/Dockerfile --pull --tag imager
 fi

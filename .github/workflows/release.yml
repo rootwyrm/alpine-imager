@@ -1,4 +1,4 @@
-name: Build Alpine releases
+name: Build for Raspberry Pi Imager
 on:
   push:
     branches: [ master ]
