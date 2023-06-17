@@ -22,6 +22,12 @@ jobs:
         run: |
           mkdir ${GITHUB_WORKSPACE}/artifact
           mkdir ${GITHUB_WORKSPACE}/image
+
+      - name: Setup qemu environment
+        uses: docker/setup-qemu-action@v2
+      - name: Setup buildx environment
+        uses: docker/setup-buildx-action@v2
+
       - name: Build ${{ matrix.release }} ${{ matrix.platform }}
         id: build
         run: |
