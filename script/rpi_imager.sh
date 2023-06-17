@@ -45,6 +45,7 @@ export IMAGE_VERSION=$2
 export IMAGE_FILE=$3
 export PLATFORM=$4
 export CHROOT=${CHROOT:-/chroot}
+export SHORTREL=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
 export logfile=/image/${IMAGE_NAME}.log
 if [ ! -f $logfile ]; then
 	touch $logfile
@@ -148,7 +149,6 @@ function virtual_disk()
 ## Retrieve and validate the minrootfs tarball
 function rootfs_retrieve()
 {
-	SHORTREL=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
 	export MINROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v${SHORTREL}/releases/aarch64/alpine-minirootfs-${IMAGE_VERSION}-aarch64.tar.gz
 	printf '*** Retrieving miniroot from %s\n' "$MINROOTFS_URL" | tee -a ${logfile}
 	curl -L --progress-bar $MINROOTFS_URL -o /tmp/$IMAGE_VERSION-aarch64.tar.gz
@@ -342,10 +342,19 @@ function prep_software()
 		CHECK_ERROR $? apk_add_$ci
 	done
 	printf '\n'
-	## Give users pretty bash by default
+	## Give users pretty shell by default
 	mv ${CHROOT}/etc/profile.d/color_prompt.sh.disabled ${CHROOT}/etc/profile.d/color_prompt.sh
 	chmod +x ${CHROOT}/etc/profile.d/color_prompt.sh
-	chmod +x ${CHROOT}/etc/profile.d/bash_completion.sh
+	## XXX: late breaking 3.18 change
+	case $SHORTREL in
+		3.17*)
+			chmod +x ${CHROOT}/etc/profile.d/bash_completion.sh
+			;;
+		3.18*)
+			chmod +x ${CHROOT}/etc/bash/bash_completion.sh
+			chroot ${CHROOT} ln -s /etc/bash/bash_completion.sh /etc/profile.d/bash_completion.sh
+			;;
+	esac
 }
 
 function prep_configuration()
