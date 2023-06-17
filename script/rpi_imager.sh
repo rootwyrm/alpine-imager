@@ -50,7 +50,7 @@ export logfile=/image/${IMAGE_NAME}.log
 if [ ! -f $logfile ]; then
 	touch $logfile
 fi
-DISK_SIZE=${DISK_SIZE:-2048}
+DISK_SIZE=${DISK_SIZE:-1024}
 
 if [ -f /.dockerenv ]; then
 	export DOCKER=true
