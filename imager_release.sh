@@ -66,9 +66,7 @@ if [ ! -d $ARTIFACT_DIR ]; then
 fi
 
 ## Build our imager
-if [ $? -ne 0 ]; then
-	docker build --file docker/Dockerfile --tag imager:latest docker/
-fi
+docker build --file docker/Dockerfile --tag imager:latest docker/
 
 docker run --rm \
 	--volume /dev:/dev \
