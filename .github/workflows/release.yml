@@ -51,6 +51,11 @@ jobs:
           body: Automatic release - ${{ github.sha }}
           draft: true
           prerelease: false
+      ## DEBUGGING
+      - name: debug - list files
+        run: |
+          ls -la ${GITHUB_WORKSPACE}/artifact
+          ls -la ${GITHUB_WORKSPACE}/image
       ## Upload the artifacts to the release
       - name: Upload release asset
         id: upload-release-asset
