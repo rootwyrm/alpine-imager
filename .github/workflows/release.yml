@@ -36,10 +36,10 @@ jobs:
         id: build
         run: |
           ${GITHUB_WORKSPACE}/imager_release.sh ${{ matrix.release }} ${{ matrix.platform }}
-      - name: Compress resulting image
+      - name: Compress image
         id: compress
         run: |
-          gzip ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+          gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
       ## Create a release with the number from matrix.releases 
       ## and the tag from matrix.arch
       #- name: Create release
@@ -71,4 +71,6 @@ jobs:
           ## XXX: set to draft
           draft: true
           files: |
-            artifact/alpine-${{ matrix.release }}-${{matrix.platform }}.img.gz
+            image/alpine-${{ matrix.release }}-${{matrix.platform }}.img
+            image/alpine-${{ matrix.release }}-${{matrix.platform }}.img.gz
+            image/alpine-${{ matrix.release }}-${{matrix.platform }}.log
