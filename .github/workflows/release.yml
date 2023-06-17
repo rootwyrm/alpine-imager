@@ -4,7 +4,9 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  rpi_image_release:
+    permissions:
+      contents: write
     name: "Build images"
     runs-on: ubuntu-latest
     strategy:
@@ -40,30 +42,33 @@ jobs:
           gzip ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
       ## Create a release with the number from matrix.releases 
       ## and the tag from matrix.arch
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ matrix.release }}-${{ matrix.platform }}
-          release_name: ${{ matrix.release }}-${{ matrix.platform }}
-          body: Automatic release - ${{ github.sha }}
-          draft: true
-          prerelease: false
+      #- name: Create release
+      #  id: create_release
+      #  uses: actions/create-release@v1
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #  with:
+      #    tag_name: ${{ matrix.release }}-${{ matrix.platform }}
+      #    release_name: ${{ matrix.release }}-${{ matrix.platform }}
+      #    body: Automatic release - ${{ github.sha }}
+      #    draft: true
+      #    prerelease: false
       ## DEBUGGING
       - name: debug - list files
         run: |
           ls -la ${GITHUB_WORKSPACE}/artifact
           ls -la ${GITHUB_WORKSPACE}/image
       ## Upload the artifacts to the release
-      - name: Upload release asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${GITHUB_WORKSPACE}/image
-          asset_name: alpine-${{ matrix.release }}-${{ matrix.platform }}.img.gz
-          asset_content_type: application/gzip
+          name: alpine-${{ matrix.release }}-${{ matrix.platform }}
+          tag_name: ${{ matrix.release }}-${{ matrix.platform }}
+          fail_on_unmatched_files: true
+          body: Automatic release - ${{ matrix.release }} - ${{ github.sha }}
+          ## XXX: set to draft
+          draft: true
+          files: |
+            artifact/alpine-${{ matrix.release }}-${{matrix.platform }}.img.gz
