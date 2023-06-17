@@ -67,7 +67,7 @@ fi
 
 ## Build our imager
 if [ $? -ne 0 ]; then
-	docker build docker --file docker/Dockerfile --pull --tag imager
+	docker build --file docker/Dockerfile --tag imager:latest docker/
 fi
 
 docker run --rm \
@@ -78,5 +78,5 @@ docker run --rm \
 	--volume ${GITHUB_WORKSPACE}/conf:/opt/rootwyrm/conf \
 	--volume ${GITHUB_WORKSPACE}/extern:/opt/rootwyrm/extern \
 	--privileged --cap-add=ALL \
-	imager \
+	imager:latest \
 	/opt/rootwyrm/bin/rpi_imager.sh alpine-${RELEASE}-${PLATFORM} ${RELEASE} alpine-${RELEASE}-${PLATFORM}.img ${PLATFORM}
