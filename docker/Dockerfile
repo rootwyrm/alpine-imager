@@ -1,4 +1,4 @@
-FROM	ubuntu:18.04
+FROM	debian:stable-slim
 ## This is to speed up the image creation, since the initial steps can
 ## be quite slow.
 
@@ -10,5 +10,4 @@ RUN	mkdir -p /opt/rootwyrm && \
 	apt-get -q -y update && \
 	apt-get -q -y upgrade > /dev/null 2>&1 ; \
 	apt-get -q -y install apt-utils > /dev/null 2>&1 ; \
-	apt-get -q -y install udev curl gpg parted dosfstools xfsprogs qemu-user qemu-user-static > /dev/null 2>&1 ; \
-	apt-get -q -y install gcc ubuntu-dev-tools > /dev/null 2>&1
+	apt-get -q -y --no-recommends install apt-utils udev curl gpg parted dosfstools xfsprogs qemu-user qemu-user-static wget

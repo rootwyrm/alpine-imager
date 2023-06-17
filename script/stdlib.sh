@@ -43,8 +43,9 @@ function CHECK_ERROR()
 		exit 1
 	fi
 	if [ $1 -ne 0 ]; then
+		set -e
 		printf '[ERROR] %s\n' "$2"
-		cleanup
+		#cleanup
 		exit $1
 	fi
 }

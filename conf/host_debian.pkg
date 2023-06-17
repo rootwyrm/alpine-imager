@@ -1,4 +1,4 @@
-## Mandatory packages for an Ubuntu host or docker 
+## Mandatory packages for Debian hosts
 apt-utils
 udev
 curl

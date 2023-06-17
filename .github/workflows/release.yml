@@ -1,0 +1,71 @@
+name: Build Alpine releases
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  prepare:
+    name: "Prepare Environment"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out from head
+        id: checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Create release Docker
+        id: docker_build
+        run: |
+          docker build docker --file docker/Dockerfile \
+          --pull --tag imager
+  build:
+    name: "Build images"
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        release: [ "3.16.6", "3.17.4", "3.18.2" ]
+        platform: [ rpi, rpi4, aarch64 ]
+    steps:
+      - name: Check out from head
+        id: checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Create storage directories
+        id: mkdir
+        run: |
+          mkdir ${GITHUB_WORKSPACE}/artifact
+          mkdir ${GITHUB_WORKSPACE}/image
+      - name: Build ${{ matrix.release }} ${{ matrix.platform }}
+        id: build
+        run: |
+          ${GITHUB_WORKSPACE}/imager_release.sh ${{ matrix.release }} ${{ matrix.platform }}
+      - name: Compress resulting image
+        id: compress
+        run: |
+          gzip ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+      ## Create a release with the number from matrix.releases 
+      ## and the tag from matrix.arch
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ matrix.release }}-${{ matrix.platform }}
+          release_name: ${{ matrix.release }}-${{ matrix.platform }}
+          body: Automatic release - ${{ github.sha }}
+          draft: true
+          prerelease: false
+      ## Upload the artifacts to the release
+      - name: Upload release asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${GITHUB_WORKSPACE}/artifact
+          asset_name: ${{ matrix.release }}-${{ matrix.platform }}.img.gz
+          asset_content_type: application/gzip
