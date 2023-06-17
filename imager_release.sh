@@ -65,9 +65,6 @@ if [ ! -d $ARTIFACT_DIR ]; then
 	mkdir $ARTIFACT_DIR
 fi
 
-## Build our imager
-docker build --file docker/Dockerfile --tag imager:latest docker/
-
 docker run --rm \
 	--volume /dev:/dev \
 	--tmpfs /run \
@@ -76,5 +73,5 @@ docker run --rm \
 	--volume ${GITHUB_WORKSPACE}/conf:/opt/rootwyrm/conf \
 	--volume ${GITHUB_WORKSPACE}/extern:/opt/rootwyrm/extern \
 	--privileged --cap-add=ALL \
-	imager:latest \
+	debian:stable-slim \
 	/opt/rootwyrm/bin/rpi_imager.sh alpine-${RELEASE}-${PLATFORM} ${RELEASE} alpine-${RELEASE}-${PLATFORM}.img ${PLATFORM}
