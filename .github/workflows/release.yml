@@ -48,8 +48,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          asset_regex: "alpine-${{ matrix.release }}-${{ matrix.platform }}.*"
-          delete: true
+          automatic_release_tag: alpine-${{ matrix.release }}-${{ matrix.platform }}
 
       ## Upload the artifacts to the release
       - name: Upload release assets
