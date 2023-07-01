@@ -66,24 +66,24 @@ jobs:
       - name: show what we got
         run: ls -lR
       ## Delete old release assets
-      - name: Delete old release assets
-        id: delete_assets
-        uses: "marvinpinto/action-automatic-releases@latest"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: auto-latest
+      #- name: Delete old release assets
+      #  id: delete_assets
+      #  uses: "marvinpinto/action-automatic-releases@latest"
+      #  env:
+      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #  with:
+      #    repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #    automatic_release_tag: auto-latest
       ## Upload the artifacts to the release
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
+        uses: marvinpinto/action-automatic-releases@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #uses: softprops/action-gh-release@v1
         with:
-          name: auto-latest
-          tag_name: auto-latest
-          fail_on_unmatched_files: true
-          body: Automatic release - ${{ github.sha }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: "auto-latest"
+          title: "Automatic release - ${{ github.sha }}"
           files: |
             ${{ github.workspace }}/alpine*.img
             ${{ github.workspace }}}/alpine*.img.gz
