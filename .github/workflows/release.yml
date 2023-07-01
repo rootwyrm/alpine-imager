@@ -61,7 +61,7 @@ jobs:
       - name: Download uncompressed image artifact
         uses: actions/download-artifact@v3
         with:
-          path: ${GITHUB_WORKSPACE}/
+          path: ${{ github.workspace }}/
       ## DEBUG
       - name: show what we got
         run: ls -lR
@@ -85,6 +85,6 @@ jobs:
           automatic_release_tag: "auto-latest"
           title: "Automatic release - ${{ github.sha }}"
           files: |
-            ${{ github.workspace }}/alpine*.img
-            ${{ github.workspace }}}/alpine*.img.gz
-            ${{ github.workspace }}/alpine*.log
+            ${{ github.workspace }}/release_artifact/alpine*.img
+            ${{ github.workspace }}/release_artifact/alpine*.img.gz
+            ${{ github.workspace }}/release_artifact/alpine*.log
