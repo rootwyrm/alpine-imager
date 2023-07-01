@@ -43,8 +43,9 @@ jobs:
       - name: Upload artifact set
         uses: actions/upload-artifact@v3
         with:
+          if-no-files-found: error
           name: release_artifact
-          path: ${GITHUB_WORKSPACE}/image/
+          path: ${GITHUB_WORKSPACE}/image/*
 
   upload_release:
     needs: rpi_image_release
