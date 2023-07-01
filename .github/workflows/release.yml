@@ -43,12 +43,12 @@ jobs:
       - name: Prove to myself the artifacts exist?
         run: |
           ls -lR ${GITHUB_WORKSPACE}/image
-      - name: Upload uncompressed image
+      - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: release_artifact
-          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+          path: ${{ github.workspace }}/image/
 
   upload_release:
     needs: rpi_image_release
