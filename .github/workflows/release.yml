@@ -48,19 +48,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: alpine-${{ matrix.release }}-${{ matrix.platform }}
+          automatic_release_tag: auto-latest
 
+  upload_release:
+    needs: rpi_image_release
+    permissions:
+      contents: write
+    name: "Build images"
+    runs-on: ubuntu-latest
+    steps:
       ## Upload the artifacts to the release
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: alpine-${{ matrix.release }}-${{ matrix.platform }}
-          tag_name: ${{ matrix.release }}-${{ matrix.platform }}
+          name: auto-latest
+          tag_name: auto-latest
           fail_on_unmatched_files: true
-          body: Automatic release - ${{ matrix.release }} - ${{ github.sha }}
+          body: Automatic release - ${{ github.sha }}
           files: |
-            image/alpine-${{ matrix.release }}-${{matrix.platform }}.img
-            image/alpine-${{ matrix.release }}-${{matrix.platform }}.img.gz
-            image/alpine-${{ matrix.release }}-${{matrix.platform }}.log
+            image/alpine*.img
+            image/alpine*.img.gz
+            image/alpine*.log
