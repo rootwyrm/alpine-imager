@@ -43,10 +43,12 @@ function retrieve_miniroot()
 	export MINROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v${SHORTREL}/releases/${IMAGE_ARCH}/alpine-minirootfs-${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz
 	printf 'Retrieving from %s\n' "$MINROOTFS_URL" | tee -a ${logfile}
 	## XXX We verify before we actually install it.
-	curl -L --progress $MINROOTFS_URL > /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz
-	curl -L --silent $MINROOTFS_URL.sha256 > /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz.sha256
-	local origin_sha=$(cat /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz.sha256 | awk '{print $1}')
-	local local_sha=$(sha256sum /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz | awk '{print $1}')
+	echo "${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz"
+	curl -L --progress-bar $MINROOTFS_URL -o /tmp/$IMAGE_VERSION-$IMAGE_ARCH.tar.gz
+	echo "curl -L --progress-bar $MINROOTFS_URL.sha256 -o /tmp/$IMAGE_VERSION-$IMAGE_ARCH.tar.gz.sha256"
+	curl -L --progress-bar $MINROOTFS_URL.sha256 -o "/tmp/$IMAGE_VERSION-$IMAGE_ARCH.tar.gz.sha256"
+	local origin_sha=$(cat /tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz.sha256 | awk '{print $1}')
+	local local_sha=$(sha256sum /tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz | awk '{print $1}')
 	printf 'Origin SHA %s\n' $origin_sha >> ${logfile}
 	if [[ "$origin_sha" != "$local_sha" ]]; then
 		printf 'ORIGIN: %s\n' "$origin_sha"
@@ -60,8 +62,8 @@ function retrieve_miniroot()
 	local ORIGIN_KEY=https://alpinelinux.org/keys/ncopa.asc
 	curl -L --silent $ORIGIN_KEY > ncopa.asc
 	gpg --import ncopa.asc | tee -a ${logfile} > /dev/null
-	curl -L --silent $MINROOTFS_URL.asc > /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz.asc 
-	gpg --verify /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz.asc /tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz | tee -a ${logfile} > /dev/null
+	curl -L --silent $MINROOTFS_URL.asc > /tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz.asc 
+	gpg --verify /tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz.asc /tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz | tee -a ${logfile} > /dev/null
 	if [ $? -ne 0 ]; then
 		printf 'Failed to verify against signing key, bailing out!\n'
 		exit 255
@@ -72,7 +74,9 @@ function retrieve_miniroot()
 
 function build_miniroot()
 {
-	local tarfile=/tmp/${IMAGE_RELEASE}-${IMAGE_ARCH}.tar.gz
+	set -e
+	echo "IMAGE_RELEASE ${IMAGE_RELEASE}"
+	local tarfile=/tmp/${IMAGE_VERSION}-${IMAGE_ARCH}.tar.gz
 	local SHORTREL=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
 	printf 'Extracting minirootfs...\n'
 	tar xfz $tarfile -C $CHROOT/

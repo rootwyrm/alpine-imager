@@ -1,4 +1,4 @@
-name: Build for Raspberry Pi Imager
+name: CICD - Raspberry Pi Imager
 on:
   push:
     branches: [ master ]
@@ -40,24 +40,17 @@ jobs:
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
-      ## Create a release with the number from matrix.releases 
-      ## and the tag from matrix.arch
-      #- name: Create release
-      #  id: create_release
-      #  uses: actions/create-release@v1
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #  with:
-      #    tag_name: ${{ matrix.release }}-${{ matrix.platform }}
-      #    release_name: ${{ matrix.release }}-${{ matrix.platform }}
-      #    body: Automatic release - ${{ github.sha }}
-      #    draft: true
-      #    prerelease: false
-      ## DEBUGGING
-      - name: debug - list files
-        run: |
-          ls -la ${GITHUB_WORKSPACE}/artifact
-          ls -la ${GITHUB_WORKSPACE}/image
+      ## Delete old release assets
+      - name: Delete old release assets
+        id: delete_assets
+        uses: "marvinpinto/action-automatic-releases@latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          asset_regex: "alpine-${{ matrix.release }}-${{ matrix.platform }}.*"
+          delete: true
+
       ## Upload the artifacts to the release
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
@@ -68,8 +61,6 @@ jobs:
           tag_name: ${{ matrix.release }}-${{ matrix.platform }}
           fail_on_unmatched_files: true
           body: Automatic release - ${{ matrix.release }} - ${{ github.sha }}
-          ## XXX: set to draft
-          draft: true
           files: |
             image/alpine-${{ matrix.release }}-${{matrix.platform }}.img
             image/alpine-${{ matrix.release }}-${{matrix.platform }}.img.gz
