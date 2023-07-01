@@ -40,22 +40,11 @@ jobs:
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
-      - name: Upload uncompressed image artifact
+      - name: Upload artifact set
         uses: actions/upload-artifact@v3
         with:
-          name: alpine.img
-          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
-      - name: Upload compressed image artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: alpine.img.gz
-          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img.gz
-      - name: Upload build log artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: alpine.log
-          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.log
-
+          name: release_artifact
+          path: ${GITHUB_WORKSPACE}/image/
 
   upload_release:
     needs: rpi_image_release
@@ -68,15 +57,10 @@ jobs:
       - name: Download uncompressed image artifact
         uses: actions/download-artifact@v3
         with:
-          name: alpine.img
-      - name: Download compressed image artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: alpine.img.gz
-      - name: Download build log artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: alpine.log
+          path: ${GITHUB_WORKSPACE}/
+      ## DEBUG
+      - name: show what we got
+        run: ls -lR
       ## Delete old release assets
       - name: Delete old release assets
         id: delete_assets
@@ -97,6 +81,6 @@ jobs:
           fail_on_unmatched_files: true
           body: Automatic release - ${{ github.sha }}
           files: |
-            alpine*.img
-            alpine*.img.gz
-            alpine*.log
+            ${GITHUB_WORKSPACE}/alpine*.img
+            ${GITHUB_WORKSPACE}/alpine*.img.gz
+            ${GITHUB_WORKSPACE}/alpine*.log
