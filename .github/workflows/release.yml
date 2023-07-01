@@ -85,6 +85,6 @@ jobs:
           fail_on_unmatched_files: true
           body: Automatic release - ${{ github.sha }}
           files: |
-            ${GITHUB_WORKSPACE}/alpine*.img
-            ${GITHUB_WORKSPACE}/alpine*.img.gz
-            ${GITHUB_WORKSPACE}/alpine*.log
+            ${{ github.workspace }}/alpine*.img
+            ${{ github.workspace }}}/alpine*.img.gz
+            ${{ github.workspace }}/alpine*.log
