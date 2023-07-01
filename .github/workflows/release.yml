@@ -40,6 +40,30 @@ jobs:
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+      - name: Upload uncompressed image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+      - name: Upload compressed image artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: alpine-${{ matrix.release }}-${{ matrix.platform }}.img.gz
+          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img.gz
+      - name: Upload build log artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: alpine-${{ matrix.release }}-${{ matrix.platform }}.log
+          path: ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.log
+
+
+  upload_release:
+    needs: rpi_image_release
+    permissions:
+      contents: write
+    name: "Publish Release"
+    runs-on: ubuntu-latest
+    steps:
       ## Delete old release assets
       - name: Delete old release assets
         id: delete_assets
@@ -49,14 +73,6 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           automatic_release_tag: auto-latest
-
-  upload_release:
-    needs: rpi_image_release
-    permissions:
-      contents: write
-    name: "Build images"
-    runs-on: ubuntu-latest
-    steps:
       ## Upload the artifacts to the release
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
