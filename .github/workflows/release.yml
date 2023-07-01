@@ -40,6 +40,9 @@ jobs:
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
+      - name: Prove to myself the artifacts exist?
+        run: |
+          ls -lR ${GITHUB_WORKSPACE}/image
       - name: Upload artifact set
         uses: actions/upload-artifact@v3
         with:
