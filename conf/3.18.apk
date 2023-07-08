@@ -25,5 +25,5 @@ cloud-init
 cloud-init-openrc
 cloud-utils
 cloud-utils-growpart
-py3-pypserial
+py3-pyserial
 py3-netifaces
