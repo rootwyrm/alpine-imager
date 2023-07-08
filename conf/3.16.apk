@@ -1,7 +1,10 @@
 alpine-base
+alpine-baselayout
 alpine-baselayout-data
 alpine-conf
-busybox-openrc
+busybox-extras
+busybox-initscripts
+busybox-ifupdown
 ca-certificates
 wpa_supplicant
 wpa_supplicant-openrc
@@ -11,7 +14,6 @@ openssh-server-common
 openssh-keygen
 openssh-client-default
 openssh-keysign
-doas
 rsyslog
 e2fsprogs
 e2fsprogs-extra
@@ -25,5 +27,5 @@ cloud-init
 cloud-init-openrc
 cloud-utils
 cloud-utils-growpart
-py3-pypserial
+py3-pyserial
 py3-netifaces

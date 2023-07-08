@@ -301,7 +301,24 @@ function prep_bootable()
 		chown 0:0 ${CHROOT}/boot/overlays
 	fi
 
-	## XXX: no more need for the dtbsd packages or fixup on 3.17+
+	case $ALPINE_MAJOR in
+		3.16*)
+			## Need to install the DTBS packages
+			## XXX: no longer required?
+			case ${PLATFORM} in
+				rpi)
+					DTBS="dtbsd-brcm dtbs-rpi"
+					;;
+				rpi4)
+					DTBS="dtbsd-brcm dtbs-rpi4"
+					;;
+			esac
+			;;
+		*)
+			## Do nothing
+			;;
+	esac
+
 
 	printf '>>> Creating /boot/cmdline.txt\n' | tee -a ${logfile}
 	printf 'modules=loop,squashfs,sd-mod,usb-storage quiet console=tty1 root=/dev/mmcblk0p2 waitroot\n' > ${CHROOT}/boot/cmdline.txt
@@ -334,13 +351,15 @@ function prep_software()
 {
 	printf '>>> Installing base software components...\n'
 	## Updated due to significant changes between Alpine versions
-	if [ ! -f /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk ]; then
+	if [ -f /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk ]; then
+		printf '>>> Using /opt/rootwyrm/conf/%s.apk\n' "${ALPINE_MAJOR}"
 		for bp in `cat /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk`; do
 			printf '%s ' "$bp"
-			chroot ${CHROOT} /sbin/apk/add -q --no-cache $bp
+			chroot ${CHROOT} /sbin/apk add -q --no-cache $bp
 			CHECK_ERROR $? apk_add_$bp
 		done
 	else
+		printf '>>> Using fallback package list\n' 
 		for bp in alpine-base alpine-baselayout-data alpine-conf busybox-openrc \
 			wpa_supplicant wpa_supplicant-openrc \
 			openssh openssh-server openssh-server-common openssh-keygen \
