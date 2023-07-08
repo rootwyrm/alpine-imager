@@ -34,13 +34,13 @@ jobs:
         id: build
         run: |
           ${GITHUB_WORKSPACE}/imager_release.sh ${{ matrix.release }} ${{ matrix.platform }}
+      - name: Prove to myself the artifacts exist?
+        run: |
+          ls -lR ${GITHUB_WORKSPACE}/image
       - name: Compress image
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}-${{ matrix.platform }}.img
-      - name: Prove to myself the artifacts exist?
-        run: |
-          ls -lR ${GITHUB_WORKSPACE}/image
       - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
