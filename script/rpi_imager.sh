@@ -35,21 +35,23 @@
 ## For building images for Raspberry Pi Imager tool
 ##
 set -e
-#set -x
+if [ ! -z $DEBUG ]; then
+	set -x
+fi
 
 source /opt/rootwyrm/bin/stdlib.sh
 source /etc/os-release
 
-export IMAGE_NAME=$1
-export IMAGE_VERSION=$2
-export IMAGE_FILE=$3
-export PLATFORM=$4
+export ALPINE_MAJOR=$1
+export ALPINE_PLATFORM=$2
 export CHROOT=${CHROOT:-/chroot}
-export SHORTREL=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
+export SHORTREL=${ALPINE_MAJOR}
+#export SHORTREL=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
 export logfile=/image/${IMAGE_NAME}.log
 if [ ! -f $logfile ]; then
 	touch $logfile
 fi
+## Default disk size of 1GB
 DISK_SIZE=${DISK_SIZE:-1024}
 
 if [ -f /.dockerenv ]; then
@@ -98,11 +100,11 @@ function virtual_disk()
 	## XXX: Raspberry Pi doesn't need the image switching
 	parted -s $IMAGE mklabel msdos
 	CHECK_ERROR $? "create disk label"
-	parted -s $IMAGE mkpart primary fat32 1 513MB
+	parted -s $IMAGE mkpart primary fat32 1 257MB
 	CHECK_ERROR $? "create fat32 boot partition"
 	parted -s $IMAGE -- set 1 boot on
 	CHECK_ERROR $? "set first partition bootable"
-	parted -s $IMAGE mkpart primary ext4 513MB 100%
+	parted -s $IMAGE mkpart primary ext4 257MB 100%
 	CHECK_ERROR $? "make Alpine Linux root partition"
 	printf '================================================================================\n' | tee -a ${logfile}
 	printf '>>> Partition information for %s\n' "$IMAGE" | tee -a ${logfile}
@@ -149,14 +151,21 @@ function virtual_disk()
 ## Retrieve and validate the minrootfs tarball
 function rootfs_retrieve()
 {
-	export MINROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v${SHORTREL}/releases/aarch64/alpine-minirootfs-${IMAGE_VERSION}-aarch64.tar.gz
+	export MINROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MAJOR}/releases/aarch64/alpine-minirootfs-${ALPINE_VERSION}-aarch64.tar.gz
 	printf '*** Retrieving miniroot from %s\n' "$MINROOTFS_URL" | tee -a ${logfile}
-	curl -L --progress-bar $MINROOTFS_URL -o /tmp/$IMAGE_VERSION-aarch64.tar.gz
-	curl -L --progress-bar $MINROOTFS_URL.sha256 -o /tmp/$IMAGE_VERSION-aarch64.tar.gz.sha256
+	curl -L --progress-bar $MINROOTFS_URL -o /tmp/$ALPINE_VERSION-aarch64.tar.gz
+	CHECK_ERROR $? retrieve_minrootfs
+	curl -L --progress-bar $MINROOTFS_URL.sha256 -o /tmp/$ALPINE_VERSION-aarch64.tar.gz.sha256
+	CHECK_ERROR $? retrieve_minrootfs_sig
 	
 	## Validate signature
-	local origin_sha=$(cat /tmp/${IMAGE_VERSION}-aarch64.tar.gz.sha256 | awk '{print $1}')
-	local local_sha=$(sha256sum /tmp/${IMAGE_VERSION}-aarch64.tar.gz | awk '{print $1}')
+	local origin_sha=$(cat /tmp/${ALPINE_VERSION}-aarch64.tar.gz.sha256 | awk '{print $1}')
+	local local_sha=$(sha256sum /tmp/${ALPINE_VERSION}-aarch64.tar.gz | awk '{print $1}')
+	## Compare against the yaml
+	if [ $local_sha != $ALPINE_SHA256 ]; then
+		printf '!!! sha256 differs from expected from latest-releases.yaml!\n'
+		exit 255
+	fi
 	printf '!!! Validating sha256sum of files...' | tee -a ${logfile}
 	if [[ "$origin_sha" != "$local_sha" ]]; then
 		printf '\nORIGIN %s\n' "$origin_sha"
@@ -174,9 +183,9 @@ function rootfs_retrieve()
 	local ORIGIN_KEY=https://alpinelinux.org/keys/ncopa.asc
 	printf '!!! Validating signing key...' | tee -a ${logfile}
 	curl -L --silent $ORIGIN_KEY > /tmp/ncopa.asc
-	gpg --import /tmp/ncopa.asc | tee -a ${logfile}
-	curl -L --silent $MINROOTFS_URL.asc > /tmp/${IMAGE_VERSION}-aarch64.tar.gz.asc
-	gpg --verify /tmp/${IMAGE_VERSION}-aarch64.tar.gz.asc /tmp/${IMAGE_VERSION}-aarch64.tar.gz | tee -a ${logfile}
+	gpg --import /tmp/ncopa.asc ; CHECK_ERROR $? gpg_import_ncopa | tee -a ${logfile}
+	curl -L --silent $MINROOTFS_URL.asc > /tmp/${ALPINE_VERSION}-aarch64.tar.gz.asc
+	gpg --verify /tmp/${ALPINE_VERSION}-aarch64.tar.gz.asc /tmp/${ALPINE_VERSION}-aarch64.tar.gz
 	if [ $? -ne 0 ]; then
 		printf '!!! Failed to verify against signing key, refusing!\n'
 		exit 255
@@ -188,9 +197,9 @@ function rootfs_retrieve()
 ## Lay down the minrootfs on our chroot
 function rootfs_laydown()
 {
-	printf '>>> Laying down Alpine Linux %s...\n' "${IMAGE_VERSION}"
-	local tarfile=/tmp/${IMAGE_VERSION}-aarch64.tar.gz
-	local shortrel=$(echo ${IMAGE_VERSION} | cut -d . -f 1,2)
+	printf '>>> Laying down Alpine Linux %s...\n' "${ALPINE_VERSION}"
+	local tarfile=/tmp/${ALPINE_VERSION}-aarch64.tar.gz
+	local shortrel=$(echo ${ALPINE_VERSION} | cut -d . -f 1,2)
 	tar xfz $tarfile -C $CHROOT/
 	CHECK_ERROR $? "extract minrootfs"
 
@@ -276,18 +285,23 @@ function prep_bootable()
 	done
 	BOOTPKG=${BOOTPKG:-raspberrypi-bootloader}
 	chroot ${CHROOT} /sbin/apk -q --no-cache add raspberrypi-bootloader | tee -a ${logfile}
-	chroot ${CHROOT} /sbin/apk -q --no-cache add raspberrypi-bootloader-debug | tee -a ${logfile}
 	CHECK_ERROR $? apk_add_$BOOTPKG
-	## temp debug
-	echo "TEMP DEBUG" | tee -a ${logfile}
-	ls -l ${CHROOT}/boot | tee -a ${logfile}
+	if [ ! -z $RPI_DEBUG ]; then
+		chroot ${CHROOT} /sbin/apk -q --no-cache add raspberrypi-bootloader-debug | tee -a ${logfile}
+		CHECK_ERROR $? apk_add_$BOOTPKG
+	fi
+	## DEBUG: contents of /boot
+	if [ ! -z $DEBUG ]; then
+		printf '%%% DEBUG: /boot contents\n' | tee -a ${logfile}
+		ls -l ${CHROOT}/boot | tee -a ${logfile}
+	fi
 
 	if [ ! -d ${CHROOT}/boot/overlays ]; then
 		mkdir ${CHROOT}/boot/overlays
 		chown 0:0 ${CHROOT}/boot/overlays
 	fi
 
-	## XXX: no more need for the dtbsd packages or fixup
+	## XXX: no more need for the dtbsd packages or fixup on 3.17+
 
 	printf '>>> Creating /boot/cmdline.txt\n' | tee -a ${logfile}
 	printf 'modules=loop,squashfs,sd-mod,usb-storage quiet console=tty1 root=/dev/mmcblk0p2 waitroot\n' > ${CHROOT}/boot/cmdline.txt
@@ -319,18 +333,27 @@ EOF
 function prep_software()
 {
 	printf '>>> Installing base software components...\n'
-	for bp in alpine-base alpine-baselayout-data alpine-conf busybox-openrc \
-		wpa_supplicant wpa_supplicant-openrc \
-		openssh openssh-server openssh-server-common openssh-keygen \
-		openssh-client-default openssh-keysign \
-		doas e2fsprogs e2fsprogs-extra chrony chrony-openrc \
-		util-linux haveged ca-certificates bash bash-completion \
-		libcamera-raspberrypi bluez bluez-deprecated \
-		cloud-utils cloud-utils-growpart; do
-		printf '%s ' "$bp"
-		chroot ${CHROOT} /sbin/apk add -q --no-cache $bp
-		CHECK_ERROR $? apk_add_$bp
-	done
+	## Updated due to significant changes between Alpine versions
+	if [ ! -f /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk ]; then
+		for bp in `cat /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk`; do
+			printf '%s ' "$bp"
+			chroot ${CHROOT} /sbin/apk/add -q --no-cache $bp
+			CHECK_ERROR $? apk_add_$bp
+		done
+	else
+		for bp in alpine-base alpine-baselayout-data alpine-conf busybox-openrc \
+			wpa_supplicant wpa_supplicant-openrc \
+			openssh openssh-server openssh-server-common openssh-keygen \
+			openssh-client-default openssh-keysign \
+			doas e2fsprogs e2fsprogs-extra chrony chrony-openrc \
+			util-linux haveged ca-certificates bash bash-completion \
+			libcamera-raspberrypi bluez bluez-deprecated \
+			cloud-utils cloud-utils-growpart; do
+			printf '%s ' "$bp"
+			chroot ${CHROOT} /sbin/apk add -q --no-cache $bp
+			CHECK_ERROR $? apk_add_$bp
+		done
+	fi
 	printf '\n'
 	printf '>>> Installing cloud-init...\n'
 	chroot ${CHROOT} /sbin/apk add -q --no-cache cloud-init
@@ -345,16 +368,16 @@ function prep_software()
 	## Give users pretty shell by default
 	mv ${CHROOT}/etc/profile.d/color_prompt.sh.disabled ${CHROOT}/etc/profile.d/color_prompt.sh
 	chmod +x ${CHROOT}/etc/profile.d/color_prompt.sh
-	## XXX: late breaking 3.18 change
-	case $SHORTREL in
-		3.17*)
-			chmod +x ${CHROOT}/etc/profile.d/bash_completion.sh
-			;;
-		3.18*)
-			chmod +x ${CHROOT}/etc/bash/bash_completion.sh
-			chroot ${CHROOT} ln -s /etc/bash/bash_completion.sh /etc/profile.d/bash_completion.sh
-			;;
-	esac
+
+	## XXX: this covers all pre-3.18 so leave it.
+	if [ -f ${CHROOT}/etc/profile.d/bash_completion.sh ]; then
+		chmod +x ${CHROOT}/etc/profile.d/bash_completion.sh
+	fi
+
+	if [ -f /opt/rootwyrm/bin/${SHORTREL}.post ]; then
+		printf '>>> Running additional steps for %s\n' "${SHORTREL}"
+		/opt/rootwyrm/bin/${SHORTREL}.post
+	fi
 }
 
 function prep_configuration()
@@ -376,26 +399,21 @@ iface wlan0 inet manual
 EOF
 
 	printf '>>> Configuring openrc...\n' | tee -a ${logfile}
-	printf '>>> [openrc] boot\n'
-	for svc in bootmisc hostname loadkmap modules networking syslog swclock haveged; do
-		chroot ${CHROOT} /sbin/rc-update add $svc boot | tee -a ${logfile}
-	done
-	printf '>>> [openrc] sysinit\n'
-	for svc in devfs dmesg hwdrivers mdev; do
-		chroot ${CHROOT} /sbin/rc-update add $svc sysinit | tee -a ${logfile}
-	done
-	printf '>>> [openrc] shutdown\n'
-	for svc in killprocs mount-ro savecache; do
-		chroot ${CHROOT} /sbin/rc-update add $svc shutdown | tee -a ${logfile}
-	done
-	printf '>>> [openrc] default\n'
-	for svc in chronyd sshd wpa_supplicant ; do
-		chroot ${CHROOT} /sbin/rc-update add $svc default | tee -a ${logfile}
-	done
-	printf '>>> Enabling cloud-init\n'
-	chroot ${CHROOT} /sbin/setup-cloud-init
+	if [ -f /opt/rootwyrm/conf/${SHORTREL}.rc ]; then
+		mapfile -t openrc < /opt/rootwyrm/conf/${SHORTREL}.rc
+		## Hacky, but more reliable.
+		for rc in ${openrc[@]}; do
+			stage=$(echo $rc | cut -d , -f 1)
+			init=$(echo $rc | cut -d , -f 2)
+			chroot ${CHROOT} /sbin/rc-update add $init $stage | tee -a ${logfile}
+		done
+	else
+		printf 'Missing an openrc configuration file!\n'
+		exit 255
+	fi
 
 	## Now we have to configure it.
+	printf '>>> Updating cloud-init datasources...\n' 
 	cat << EOF > ${CHROOT}/etc/cloud/cloud.cfg.d/00_datasource.cfg
 datasource_list: [ NoCloud, None ]
 datasource:
@@ -422,6 +440,14 @@ printf '########################################################################
 printf '*** Beginning build for Raspberry Pi Imager...\n'
 printf '################################################################################\n'
 host_packages
+latest-releases $ALPINE_MAJOR
+if [ $? -ne 0 ]; then
+	printf 'Failed to retrieve latest-releases.yaml!\n'
+	exit 1
+fi
+export IMAGE_FILE=alpine-${ALPINE_VERSION}-${ALPINE_PLATFORM}.img
+#echo $IMAGE_FILE
+#exit 0
 virtual_disk
 rootfs_retrieve
 rootfs_laydown

@@ -11,9 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        #release: [ "3.16.6", "3.17.4", "3.18.2" ]
-        #platform: [ rpi, rpi4, aarch64 ]
-        release: [ "3.17.4", "3.18.2" ]
+        release: [ "3.17", "3.18" ]
         platform: [ rpi, rpi4 ]
     steps:
       - name: Check out from head
