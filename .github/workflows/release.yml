@@ -38,9 +38,11 @@ jobs:
         id: compress
         run: |
           gzip -k ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}*-${{ matrix.platform }}.img
-      - name: Prove to myself the artifacts exist?
+      - name: Generate checksums
         run: |
-          ls -lR ${GITHUB_WORKSPACE}/image
+          for x in `ls ${GITHUB_WORKSPACE}/image/alpine-${{ matrix.release }}*-${{ matrix.platform }}.img*`; do 
+          sha256sum $x > $x.sha256
+          done
       - name: Upload image artifact
         uses: actions/upload-artifact@v3
         with:
@@ -61,17 +63,17 @@ jobs:
         with:
           path: ${{ github.workspace }}/
       ## DEBUG
-      - name: show what we got
-        run: ls -lR
+      #- name: show what we got
+      #  run: ls -lR
       ## Delete old release assets
-      #- name: Delete old release assets
-      #  id: delete_assets
-      #  uses: "marvinpinto/action-automatic-releases@latest"
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #  with:
-      #    repo_token: ${{ secrets.GITHUB_TOKEN }}
-      #    automatic_release_tag: auto-latest
+      - name: Delete old release assets
+        id: delete_assets
+        uses: "marvinpinto/action-automatic-releases@latest"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
       ## Upload the artifacts to the release
       - name: Upload release assets
         uses: marvinpinto/action-automatic-releases@latest
@@ -80,9 +82,11 @@ jobs:
         #uses: softprops/action-gh-release@v1
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: "auto-latest"
-          title: "Automatic release - ${{ github.sha }}"
+          automatic_release_tag: "latest"
+          draft: false
+          title: "Automatic Release"
           files: |
             ${{ github.workspace }}/release_artifact/alpine*.img
-            ${{ github.workspace }}/release_artifact/alpine*.img.gz
+            ${{ github.workspace }}/release_artifact/alpine*.img.sha256
+            ${{ github.workspace }}/release_artifact/alpine*.img.gz.sha256
             ${{ github.workspace }}/release_artifact/alpine*.log
