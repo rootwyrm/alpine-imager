@@ -18,6 +18,7 @@ setenv scriptaddr "0x08000000"			# scriptaddr 128MB
 setenv fdt_addr_r "0x08008000"			# fdt_addr_r 128MB + 32K
 setenv kernel_addr_r "0x08080000"		# kernel_addr_r 128MB + 512K
 setenv initrd_addr_r "0x13000000"		# ramdisk_addr_r 256MB + 48MB = 304MB
+setenv ramdisk_addr_r "0x13000000"		# ramdisk_addr_r 256MB + 48MB = 304MB
 setenv custom_init_sp_addr "0x20000000"	# CUSTOM_SYS_INIT_SP_ADDR 512MB
 
 #Size
@@ -69,9 +70,10 @@ fi
 echo "bootargs: ${bootargs}"
 
 ## Our kernel and file locations are fixed
-load ${devtype} ${devnum} ${initrd_addr_r} ${prefix}initrd-lts
-load ${devtype} ${devnum} ${kernel_addr_r} ${prefix}linux-lts
-load ${devtype} ${devnum} ${fdt_addr_r} ${prefix}dtbs-lts/amlogic/meson-gxl-s905x-libretech-cc.dtb
+load ${devtype} ${devnum} ${initrd_addr_r} ${prefix}initramfs-lts
+load ${devtype} ${devnum} ${kernel_addr_r} ${prefix}vmlinuz-lts
+#load ${devtype} ${devnum} ${fdt_addr_r} ${prefix}dtbs-lts/amlogic/meson-gxl-s905x-libretech-cc.dtb
+load ${devtype} ${devnum} ${fdt_addr_r} ${prefix}aml-s905x-cc.dtb
 fdt addr ${fdt_addr_r}
 fdt resize 65536
 ## XXX: we don't have any overlays ourselves
@@ -82,4 +84,4 @@ for overlay_user in ${overlay_users}; do
 	fi
 done
 
-booti ${kernel_addr_r} ${ramdisk_addr_r} ${fdt_addr_r}
+booti ${kernel_addr_r} ${initrd_addr_r} ${fdt_addr_r}
