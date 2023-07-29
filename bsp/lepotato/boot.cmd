@@ -47,8 +47,8 @@ fi
 
 ## To make life easier, get our partuuids.
 if test "${devtype}" = "mmc"; then
-	part uuid mmc ${devnum}1 bootuuid
-	part uuid mmc ${devnum}2 rootuuid
+	part uuid mmc ${devnum}:1 bootuuid
+	part uuid mmc ${devnum}:2 rootuuid
 fi
 ## Get the partition UUID we loaded from, we need it later.
 #if test "${devtype}" = "mmc"; then part uuid mmc ${devnum}:1 partuuid; fi
