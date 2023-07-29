@@ -32,8 +32,9 @@
 #
 ################################################################################
 ##
-## For building images for Raspberry Pi Imager tool
+## For building uboot images for Raspberry Pi Imager tool
 ##
+#set -x
 set -e
 if [ ! -z $DEBUG ]; then
 	set -x
@@ -51,15 +52,9 @@ export logfile=/image/${IMAGE_NAME}.log
 if [ ! -f $logfile ]; then
 	touch $logfile
 fi
-## The Linux kernel has gotten Windows-sized large
-case $ALPINE_PLATFORM in
-	rpi*)
-		DISK_SIZE=${DISK_SIZE:-1024}
-		;;
-	*)
-		DISK_SIZE=${DISK_SIZE:-1024}
-		;;
-esac
+
+## uboot should fit, but it's a little tight.
+DISK_SIZE=${DISK_SIZE:-1024}
 
 if [ -f /.dockerenv ]; then
 	export DOCKER=true
@@ -67,25 +62,25 @@ if [ -f /.dockerenv ]; then
 fi
 
 ## Install host packages
-function host_packages()
-{
-	printf '*** Configuring build host...\n' | tee -a ${logfile}
-	echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
-	apt-get -q -y update > /dev/null
-	apt-get -q -y install apt-utils > /dev/null
-	if [ ! -f /opt/rootwyrm/conf/host_${ID}.pkg ]; then
-		printf 'Missing host package configuration: host %s.pkg\n' "${ID}"
-		exit 255
-	else
-		printf '*** Installing host packages: ' | tee -a ${logfile}
-		for p in `cat /opt/rootwyrm/conf/host_${ID}.pkg | grep -v ^#`; do
-			printf '%s ' "$p" | tee -a $logfile
-			apt-get install -y -q $p > /dev/null
-			CHECK_ERROR $? "apt-get install $p" | tee -a ${logfile}
-		done
-		printf '\n' | tee -a ${logfile}
-	fi
-}
+#function host_packages()
+#{
+#	printf '*** Configuring build host...\n' | tee -a ${logfile}
+#	echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+#	apt-get -q -y update > /dev/null
+#	apt-get -q -y install apt-utils > /dev/null
+#	if [ ! -f /opt/rootwyrm/conf/host_${ID}.pkg ]; then
+#		printf 'Missing host package configuration: host %s.pkg\n' "${ID}"
+#		exit 255
+#	else
+#		printf '*** Installing host packages: ' | tee -a ${logfile}
+#		for p in `cat /opt/rootwyrm/conf/host_${ID}.pkg | grep -v ^#`; do
+#			printf '%s ' "$p" | tee -a $logfile
+#			apt-get install -y -q $p > /dev/null
+#			CHECK_ERROR $? "apt-get install $p" | tee -a ${logfile}
+#		done
+#		printf '\n' | tee -a ${logfile}
+#	fi
+#}
 
 ## Set up virtual disk
 function virtual_disk()
@@ -104,58 +99,115 @@ function virtual_disk()
 		exit 255
 	fi
 	local IMAGE=/image/${IMAGE_FILE}
-	## XXX: Raspberry Pi doesn't need the image switching
-	parted -s $IMAGE mklabel msdos
-	CHECK_ERROR $? "create disk label"
-	parted -s $IMAGE mkpart primary fat32 1 257MB
-	CHECK_ERROR $? "create fat32 boot partition"
-	parted -s $IMAGE -- set 1 boot on
-	CHECK_ERROR $? "set first partition bootable"
-	parted -s $IMAGE mkpart primary ext4 257MB 100%
-	CHECK_ERROR $? "make Alpine Linux root partition"
-	printf '================================================================================\n' | tee -a ${logfile}
-	printf '>>> Partition information for %s\n' "$IMAGE" | tee -a ${logfile}
-	printf '\n' | tee -a ${logfile}
-	parted -s $IMAGE print | tee -a ${logfile}
-	printf '================================================================================\n' | tee -a ${logfile}
+
+	## u-boot specific things
+	## XXX: MUST be run from crossarch docker to get the packages without a 
+	## bunch of extra steps.
+	## docker run --rm -ti --platform linux/arm64/v8 alpine:latest
+	#NYI: /opt/rootwyrm/bin/uboot_platform.sh ${ALPINE_MAJOR} ${ALPINE_PLATFORM}
+
+	UBOOT_MAP=/opt/rootwyrm/conf/uboot.map
+	grep ^${ALPINE_PLATFORM} $UBOOT_MAP > /dev/null
+	if [ $? -ne 0 ]; then
+		printf '!!! Platform %s not found in uboot map!\n' "${ALPINE_PLATFORM}"
+		exit 255
+	fi
+	export UBOOT_APK=$(grep ^${ALPINE_PLATFORM} $UBOOT_MAP | cut -d , -f 2)
+	export UBOOT_BIN=$(grep ^${ALPINE_PLATFORM} $UBOOT_MAP | cut -d , -f 3)
+	export UBOOT_UEFI=$(grep ^${ALPINE_PLATFORM} $UBOOT_MAP | cut -d , -f 4)
+	export UBOOT_SEEK=$(grep ^${ALPINE_PLATFORM} $UBOOT_MAP | cut -d , -f 5)
+	export UBOOT_BS=$(grep ^${ALPINE_PLATFORM} $UBOOT_MAP | cut -d , -f 5)
 
 	## Setup loopback devices
 	printf '*** Setting up loopback devices...\n' | tee -a ${logfile}
 	losetup -f -P --show $IMAGE | tee -a /tmp/loopdev
 	CHECK_ERROR $? "loopback device setup"
 	export LOOPDEV=$(cat /tmp/loopdev)
+
+	## NOTE: this has to be executed on the host!
+	#apk add -q --no-cache $UBOOT_APK
+	#if [ ! -f /usr/share/u-boot/$UBOOT_BIN ]; then
+	#	printf '!!! ERROR: expected u-boot.bin file missing!\n'
+	#	exit 255
+	#fi
+	#dd if=/usr/share/u-boot/$UBOOT_BIN of=$LOOPDEV seek=$UBOOT_SEEK bs=$UBOOT_BS
+	## XXX: Raspberry Pi doesn't need the image switching
+	parted -s $LOOPDEV mklabel msdos
+	CHECK_ERROR $? "create disk label"
+	parted -s $LOOPDEV mkpart primary fat32 4MB 260MB
+	CHECK_ERROR $? "create fat32 boot partition"
+	parted -s $LOOPDEV -- set 1 boot on
+	CHECK_ERROR $? "set first partition bootable"
+	parted -s $LOOPDEV type 1 ef
+	CHECK_ERROR $? "set partition esp"
+	parted -s $LOOPDEV mkpart primary ext4 261MB 100%
+	CHECK_ERROR $? "make Alpine Linux root partition"
+
+	## July 2022 u-boot KNOWN WORKING	
+	#curl -o u-boot.bin https://boot.libre.computer/ci/aml-s905x-cc-2022-07
+	## July 22 2023 u-boot
+	curl -o u-boot.bin https://boot.libre.computer/ci/aml-s905x-cc
+	curl -o aml-s905x-cc.dtb https://boot.libre.computer/ci/aml-s905x-cc.dtb
+	dd if=u-boot.bin of=$LOOPDEV oflag=direct bs=512 seek=1 status=progress
+
+################################################################################
+# try gpt
+################################################################################
+	#parted -s $LOOPDEV mklabel gpt
+	#parted -s $LOOPDEV mkpart primary fat32 4M 260M
+	## Set ESP
+	#parted -s $LOOPDEV type 1 C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+	#parted -s $LOOPDEV mkpart ext4 260M 100%
+
+	#git clone https://github.com/libre-computer-project/libretech-flash-tool
+	#cd libretech-flash-tool
+	#LFTLOOP=$(echo $LOOPDEV | sed -e 's,/dev/,,g')
+	#echo "y" | ./lft.sh bl-flash aml-s905x-cc $LFTLOOP
+	#CHECK_ERROR $? "lft write"
+	#cd ..
+
 	export BOOTPART=${LOOPDEV}p1
 	export ROOTPART=${LOOPDEV}p2
 	printf '*** Boot partition at %s\n' "$BOOTPART" | tee -a ${logfile}
 	printf '*** Root partition at %s\n' "$ROOTPART" | tee -a ${logfile}
 
+	if [ ! -d ${CHROOT} ]; then
+		mkdir /chroot
+	fi
 	## Format the disks
 	printf '>>> Formatting boot partition\n' | tee -a ${logfile}
 	mkfs.fat -F 32 -n "BOOT" ${BOOTPART} | tee -a ${logfile}
+	#mkfs.fat -F 32 -M 0xEF -n "BOOT" ${BOOTPART} | tee -a ${logfile}
 	CHECK_ERROR $? "format boot partition fat32"
 	printf '>>> Formatting root partition\n' | tee -a ${logfile}
-	mkfs.ext4 -L "alpine" ${ROOTPART} | tee -a ${logfile}
+	mkfs.ext4 -t ext4 -L "alpine" ${ROOTPART} | tee -a ${logfile}
 	CHECK_ERROR $? "format root partition ext4"
 
-	## Mount the disks
+	printf '================================================================================\n' | tee -a ${logfile}
+	printf '>>> Partition information for %s\n' "$IMAGE" | tee -a ${logfile}
+	printf '\n' | tee -a ${logfile}
+	parted -s $IMAGE print | tee -a ${logfile}
+	printf '================================================================================\n' | tee -a ${logfile}
+	
 	## XXX: do not use tmpfs for CHROOT, now has noexec as default
 	if [ ! -d $CHROOT ]; then
 		mkdir $CHROOT
 	fi
 	## Mount the fat32 under the root
 	printf '*** Mounting %s to chroot...\n' "${ROOTPART}" | tee -a ${logfile}
-	mount -v -o rw,defaults ${ROOTPART} $CHROOT
+	mount -t ext4 -o rw ${ROOTPART} $CHROOT
 	CHECK_ERROR $? "mounting root partition"
-	mkdir $CHROOT/boot
+	mkdir -p $CHROOT/boot
 	CHECK_ERROR $? "mkdir $CHROOT/boot"
 	chown 0:0 $CHROOT/boot
-	printf '*** Mounting %s to chroot/boot...\n' "${BOOTPART}" | tee -a ${logfile}
+	#ls -lR $CHROOT/boot
+	printf '*** Mounting %s to chroot/boot/efi...\n' "${BOOTPART}" | tee -a ${logfile}
 	mount -v -t vfat -o rw,defaults ${BOOTPART} $CHROOT/boot
-	CHECK_ERROR $? "mounting boot partition"
-
+	CHECK_ERROR $? "mounting efi partition"
+	tune2fs -O ^metadata_csum_seed ${ROOTPART}
 }
 
-## Retrieve and validate the minrootfs tarball
+## Retrieve and validate the uboot tarball
 function rootfs_retrieve()
 {
 	export MINROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v${ALPINE_MAJOR}/releases/aarch64/alpine-minirootfs-${ALPINE_VERSION}-aarch64.tar.gz
@@ -169,10 +221,10 @@ function rootfs_retrieve()
 	local origin_sha=$(cat /tmp/${ALPINE_VERSION}-aarch64.tar.gz.sha256 | awk '{print $1}')
 	local local_sha=$(sha256sum /tmp/${ALPINE_VERSION}-aarch64.tar.gz | awk '{print $1}')
 	## Compare against the yaml
-	if [ $local_sha != $ALPINE_SHA256 ]; then
-		printf '!!! sha256 differs from expected from latest-releases.yaml!\n'
-		exit 255
-	fi
+	#if [ $local_sha != $ALPINE_SHA256 ]; then
+	#	printf '!!! sha256 differs from expected from latest-releases.yaml!\n'
+	#	exit 255
+	#fi
 	printf '!!! Validating sha256sum of files...' | tee -a ${logfile}
 	if [[ "$origin_sha" != "$local_sha" ]]; then
 		printf '\nORIGIN %s\n' "$origin_sha"
@@ -211,21 +263,24 @@ function rootfs_laydown()
 	CHECK_ERROR $? "extract minrootfs"
 
 	## Do our bind mounts, or apk doesn't work.
-	printf '*** Performing vital bind mounts...' | tee -a ${logfile}
-	mount --bind /proc $CHROOT/proc
+	printf '*** Performing vital bind mounts... ' | tee -a ${logfile}
+	mount -o bind /proc ${CHROOT}/proc
 	CHECK_ERROR $? "bind mount /proc"
 	printf '/proc ' | tee -a ${logfile}
-	mount --bind /proc/sys/fs/binfmt_misc $CHROOT/proc/sys/fs/binfmt_misc
-	CHECK_ERROR $? "bind mount /proc/sys/fs/binfmt_misc"
-	printf '/proc/sys/fs/binfmt_misc ' | tee -a ${logfile}
-	mount --bind /sys $CHROOT/sys
+	#mount --bind /proc/sys/fs/binfmt_misc $CHROOT/proc/sys/fs/binfmt_misc
+	#CHECK_ERROR $? "bind mount /proc/sys/fs/binfmt_misc"
+	#printf '/proc/sys/fs/binfmt_misc ' | tee -a ${logfile}
+	mount -o bind /sys ${CHROOT}/sys
 	CHECK_ERROR $? "bind mount /sys"
-	printf '/sys' | tee -a ${logfile}
+	printf '/sys ' | tee -a ${logfile}
+	mount -o bind /dev ${CHROOT}/dev	
+	CHECK_ERROR $? "bind mount /dev"
+	printf '/dev ' | tee -a ${logfile}
 	printf '\n'
 
 	## qemu bootstrap, extremely critical!
-	local qemubin=$(which qemu-aarch64-static)
-	cp $qemubin ${CHROOT}${qemubin}
+	#local qemubin=$(which qemu-aarch64-static)
+	#cp $qemubin ${CHROOT}${qemubin}
 	## FYI: quad9 is usually unavailable from Github actions
 	cp /etc/resolv.conf ${CHROOT}/etc/resolv.conf
 	printf '>>> Setting up repositories in chroot...\n' | tee -a ${logfile}
@@ -237,8 +292,22 @@ function rootfs_laydown()
 	done
 }
 
+## Finalize by cleaning up and being a good steward of resources
+function finalize()
+{
+	printf '*** Flushing and unmounting chroot\n' | tee -a ${logfile}
+	sync
+	cd /
+	umount ${CHROOT}/proc/sys/fs/binfmt_misc
+	umount ${CHROOT}/proc
+	umount ${CHROOT}/sys
+	umount ${CHROOT}/boot
+	umount ${CHROOT}
+	losetup -d $LOOPDEV
+}
+
 ## Now comes the fun parts...
-## Actually prepare the Alpine image for Raspberry Pi imager.
+## Actually prepare the Alpine image for uboot-efi hosts, slightly different
 function prep_fstab()
 {
 	if [ ! -z $BOOTUUID ]; then
@@ -264,131 +333,39 @@ function prep_fstab()
 
 	#XXX: No arch switching here
 	local fstab=${CHROOT}/etc/fstab
-	echo "UUID=${ROOTUUID}	/	ext4	defaults	0 0" > $fstab
-	echo "UUID=${BOOTUUID}		/media/mmcblk0p1	vfat	defaults	0 0" >>  $fstab
-	echo "## DO NOT MODIFY THIS SECTION" >> $fstab
-	echo "/media/mmcblk0p1	/boot	none	defaults,bind	0 0" >> $fstab
+	echo "UUID=${ROOTUUID}	/			ext4	defaults	0 1" > $fstab
+	echo "UUID=${BOOTUUID}	/boot/efi	vfat	rw,relatime,fmask=0022,dmask=0022,shortname=mixed,errors=remount-ro 0 2" >>  $fstab
 	echo "## ADD ANY CUSTOM ENTRIES AFTER THIS POINT" >> $fstab
 	echo "" >> $fstab
 	echo "/dev/usbdisk	/media/usb	vfat	noauto	0 0" >> $fstab
-}
 
-## Prep our setup to actually be bootable
-function prep_bootable()
-{
-	printf '>>> Updating apk repositories...\n' | tee -a ${logfile}
-	chroot ${CHROOT} /sbin/apk update ; RC=$? | tee -a ${logfile}
-	CHECK_ERROR $RC prep_bootable_apk_update
-	printf '>>> Installing late-breaking security fixes...\n' | tee -a ${logfile}
-	chroot ${CHROOT} /sbin/apk upgrade ; RC=$? | tee -a ${logfile}
-	CHECK_ERROR $RC prep_bootable_apk_upgrade
-	case ${ALPINE_PLATFORM} in
-		rpi*)
-			## Have to install _both_ kernels...
-			printf '>>> Installing kernels... \n'
-			for k in linux-rpi linux-rpi4; do
-				printf '%s\n' "$k"
-				chroot ${CHROOT} /sbin/apk -q --no-cache add $k 
-				CHECK_ERROR $? apk_add_$k
-			done
-			BOOTPKG=${BOOTPKG:-raspberrypi-bootloader}
-			;;
-		uboot-efi)
-			## For non-rpi like Libre, Rock, etc.
-			printf '>>> Installing firmware modules... '
-			for fw in amphion atmel atusb av7110 brcm cadence cavium cis cpia2 cypress dabusb edgeport go7007 keyspan keyspan_pda libertas mediatek meson microchip moxa mrvl mwl8k mwlwifi nxp ositech rockchip rsi rtl8192e rtl_bt rtl_nic rtlwifi rtw88 rtw89 sxg ti ti-connectivity ti-keystone ttusb-budget vicam; do
-				chroot ${CHROOT} /sbin/apk -q --no-cache add linux-firmware-${fw}
-				CHECK_ERROR $? apk_add_$fw
-				printf '%s ' "$fw"
-			done
-			printf '\n'
-			printf '>>> Installing kernel... '
-			KERNEL="linux-lts"
-			printf '%s\n' "$KERNEL"
-			chroot ${CHROOT} /sbin/apk -q --no-cache add $KERNEL 
-			CHECK_ERROR $? apk_add_$KERNEL
-			BOOTPKG=${BOOTPKG:-grub-efi}
-			;;
-	esac
-
-	## Work around a grub issue.	
-	case $BOOTPKG in
-		grub-efi)
-			chroot ${CHROOT} /sbin/apk -q --no-cache --no-commit-hooks add ${BOOGPKG}
-			CHECK_ERROR $? apk_add_$BOOTPKG
-			printf '>>> Installed bootloader %s\n' "$BOOTPKG"
-			## DEBUG
-			ls -lR ${CHROOT}/boot
-			;;
-		rpi*)
-			chroot ${CHROOT} /sbin/apk -q --no-cache add ${BOOTPKG} 
-			CHECK_ERROR $? apk_add_$BOOTPKG
-			printf '>>> Installed bootloader %s\n' "$BOOTPKG"
-			;;
-	esac
-	if [ ! -z $RPI_DEBUG ]; then
-		chroot ${CHROOT} /sbin/apk -q --no-cache add raspberrypi-bootloader-debug | tee -a ${logfile}
-		CHECK_ERROR $? apk_add_$BOOTPKG
+	## Setup extlinux here
+	if [ -f /opt/rootwyrm/conf/bsp/${ALPINE_PLATFORM}.extlinux.conf ]; then
+		cp /opt/rootwyrm/conf/bsp/${ALPINE_PLATFORM}.extlinux.conf ${CHROOT}/boot/extlinux.cfg
+		echo "$ALPINE_MAJOR"
+		echo "$ROOTUUID"
+		sed -i -e 's,%%ALPINE_MAJOR%%,'${ALPINE_MAJOR}',g' ${CHROOT}/boot/extlinux.cfg
+		sed -i -e 's,%%ROOT_UUID%%,'${ROOTUUID}',g' ${CHROOT}/boot/extlinux.cfg
+	else
+		printf '!!! FATAL: missing BSP for platform %s\n' "${ALPINE_PLATFORM}"
+		exit 255
 	fi
-	## DEBUG: contents of /boot
-	if [ ! -z $DEBUG ]; then
-		printf '%%% DEBUG: /boot contents\n' | tee -a ${logfile}
-		ls -l ${CHROOT}/boot | tee -a ${logfile}
-	fi
-
-	if [ ! -d ${CHROOT}/boot/overlays ]; then
-		mkdir ${CHROOT}/boot/overlays
-		chown 0:0 ${CHROOT}/boot/overlays
-	fi
-
-	case $ALPINE_MAJOR in
-		3.16*)
-			## Need to install the DTBS packages
-			## XXX: no longer required?
-			case ${PLATFORM} in
-				rpi)
-					DTBS="dtbsd-brcm dtbs-rpi"
-					;;
-				rpi4)
-					DTBS="dtbsd-brcm dtbs-rpi4"
-					;;
-			esac
-			;;
-		*)
-			## Do nothing
-			;;
-	esac
-
-
-	printf '>>> Creating /boot/cmdline.txt\n' | tee -a ${logfile}
-	printf 'modules=loop,squashfs,sd-mod,usb-storage quiet console=tty1 root=/dev/mmcblk0p2 waitroot\n' > ${CHROOT}/boot/cmdline.txt
-	printf '>>> Creating /boot/config.txt\n'
-	cat << EOF > ${CHROOT}/boot/config.txt
-### This file may be overwritten on upgrade! Make your changes to
-### usercfg.txt instead!
-## https://www.raspberrypi.com/documentation/computers/config_txt.html
-[pi02]
-kernel=vmlinuz-rpi
-initramfs initramfs-rpi
-[pi3]
-kernel=vmlinuz-rpi
-initramfs initramfs-rpi
-[pi3+]
-kernel=vmlinuz-rpi
-initramfs initramfs-rpi
-[pi4]
-enable_gic=1
-kernel=vmlinuz-rpi4
-initramfs initramfs-rpi4
-[all]
-arm_64bit=1
-include usercfg.txt
-EOF
 }
 
 ## Install our software
 function prep_software()
 {
+	printf '>>> Installing firmware modules... '
+		for fw in amphion atmel atusb av7110 brcm cadence cavium cis cpia2 cypress dabusb edgeport go7007 keyspan keyspan_pda libertas mediatek meson microchip moxa mrvl mwl8k mwlwifi nxp ositech rockchip rsi rtl8192e rtl_bt rtl_nic rtlwifi rtw88 rtw89 sxg ti ti-connectivity ti-keystone ttusb-budget vicam; do
+		chroot ${CHROOT} /sbin/apk -q --no-cache add linux-firmware-${fw}
+		CHECK_ERROR $? apk_add_$fw
+		printf '%s ' "$fw"
+	done
+	printf '\n'
+
+	printf '>>> Installing kernel...\n'
+	chroot $CHROOT /sbin/apk add -q --no-cache linux-lts
+
 	printf '>>> Installing base software components...\n'
 	## Updated due to significant changes between Alpine versions
 	if [ -f /opt/rootwyrm/conf/${ALPINE_MAJOR}.apk ]; then
@@ -407,7 +384,7 @@ function prep_software()
 			doas e2fsprogs e2fsprogs-extra chrony chrony-openrc \
 			util-linux haveged ca-certificates bash bash-completion \
 			libcamera-raspberrypi bluez bluez-deprecated \
-			cloud-utils cloud-utils-growpart; do
+			cloud-utils cloud-utils-growpart dosfstools; do
 			printf '%s ' "$bp"
 			chroot ${CHROOT} /sbin/apk add -q --no-cache $bp
 			CHECK_ERROR $? apk_add_$bp
@@ -437,6 +414,14 @@ function prep_software()
 		printf '>>> Running additional steps for %s\n' "${SHORTREL}"
 		/opt/rootwyrm/bin/${SHORTREL}.post
 	fi
+
+	chroot ${CHROOT} /sbin/apk -q --no-cache --no-scripts add grub grub-efi 
+	CHECK_ERROR $? "apk add grub-efi"
+	chroot ${CHROOT} /sbin/apk -q --no-cache add efibootmgr
+	chroot ${CHROOT} /usr/sbin/grub-install --efi-directory=/boot
+	chroot ${CHROOT} /usr/sbin/grub-mkconfig -o /boot/grub/grub.cfg
+	cp u-boot.bin ${CHROOT}/boot
+	cp aml-s905x-cc.dtb ${CHROOT}/boot
 }
 
 function prep_configuration()
@@ -481,14 +466,22 @@ datasource:
 EOF
 }
 
+## Handle our uboot platforms
+uboot_platform()
+{
+	printf '>>> Entering uboot UEFI platform setup\n' | tee -a ${logfile}
+	## Call out to the separate script which has the platform mappings
+	/opt/rootwyrm/bin/uboot_platform.sh ${ALPINE_RELEASE} ${ALPINE_PLATFORM}
+}
+
 ## Finalize by cleaning up and being a good steward of resources
 function finalize()
 {
 	printf '*** Flushing and unmounting chroot\n' | tee -a ${logfile}
 	sync
 	cd /
-	umount ${CHROOT}/proc/sys/fs/binfmt_misc
 	umount ${CHROOT}/proc
+	umount ${CHROOT}/dev
 	umount ${CHROOT}/sys
 	umount ${CHROOT}/boot
 	umount ${CHROOT}
@@ -498,30 +491,21 @@ function finalize()
 printf '################################################################################\n'
 printf '*** Beginning build for Raspberry Pi Imager...\n'
 printf '################################################################################\n'
-host_packages
+#host_packages
 latest-releases $ALPINE_MAJOR
 if [ $? -ne 0 ]; then
 	printf 'Failed to retrieve latest-releases.yaml!\n'
 	exit 1
 fi
 export IMAGE_FILE=alpine-${ALPINE_VERSION}-${ALPINE_PLATFORM}.img
-## Early sanity check
-case ${ALPINE_PLATFORM} in
-	rpi*|uboot-efi)
-		printf '>>> Building for %s\n' "${ALPINE_PLATFORM}"
-		;;
-	*)
-		printf '!!! Unknown platform %s\n' "${ALPINE_PLATFORM}"
-		exit 1
-		;;
-esac
+## XXX: needs an early sanity 
 #echo $IMAGE_FILE
 #exit 0
 virtual_disk
 rootfs_retrieve
 rootfs_laydown
 prep_fstab
-prep_bootable
 prep_software
 prep_configuration
+#uboot_platform
 finalize

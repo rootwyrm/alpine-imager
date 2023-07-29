@@ -41,7 +41,7 @@ function CHECK_ERROR()
 		printf "Hit CHECK_ERROR erroneously?"
 		exit 1
 	fi
-	if [ $1 -ne 0 ]; then
+	if [[ $1 -ne 0 ]]; then
 		set -e
 		printf '[ERROR] %s\n' "$2"
 		#cleanup
