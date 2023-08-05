@@ -94,7 +94,15 @@ function latest-releases() {
 	fi
 
 	MAJOR=$1
-	curl -L --progress-bar https://dl-cdn.alpinelinux.org/alpine/v${MAJOR}/releases/aarch64/latest-releases.yaml -o latest-releases.yaml
+	case $MAJOR in
+		edge)
+			curl -L --progress-bar https://dl-cdn.alpinelinux.org/alpine/${MAJOR}/releases/aarch64/latest-releases.yaml -o latest-releases.yaml
+			;;
+		*)
+			curl -L --progress-bar https://dl-cdn.alpinelinux.org/alpine/v${MAJOR}/releases/aarch64/latest-releases.yaml -o latest-releases.yaml
+			;;
+	esac
+
 
 	## Assume order changes so we have to parse out minrootfs
 	minrootprefix=$(parse_yaml latest-releases.yaml | grep flavor | grep "alpine-minirootfs" | cut -d _ -f 1)
