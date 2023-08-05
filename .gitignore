@@ -1,6 +1,6 @@
 ## Assembled from snippets...
 
-*/.sw*
+*.sw*
 */tmp/**
 *tmp
 */image/**
