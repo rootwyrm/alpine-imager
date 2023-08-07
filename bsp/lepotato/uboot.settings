@@ -1,0 +1,26 @@
+setenv fdtoverlay_addr_r "0x01000000"
+setenv loadaddr_r "0x01000000"
+setenv splash_addr_r "0x01000000"
+setenv fastboot_buf_addr "0x01000000"
+setenv sys_load_addr "0x01000000"
+setenv text_base_r "0x01000000"
+setenv scriptaddr "0x08000000"
+setenv fdt_addr_r "0x08008000"
+setenv kernel_addr_r "0x08080000"
+setenv initrd_addr_r "0x13000000"
+setenv ramdisk_addr_r "0x13000000"
+setenv custom_init_sp_addr "0x20000000"
+
+setenv devnum 1
+part uuid mmc ${devnum}:1 bootuuid
+part uuid mmc ${devnum}:2 rootuuid
+
+setenv bootargs "boot=PARTUUID=${bootuuid} root=PARTUUID=${rootuuid} initrd=/boot/initramfs-lts modloop=/boot/modloop-s905x rootfstype=ext4 modules=loopfs,squashfs,sd-mod,usb-storage rootwait"
+#setenv bootargs "root=${rootuuid} rootwait rootfstype=ext4 consoleblank=0 coherent_pool=2M ubootpart=${bootuuid} modloop=/boot/modloop-s905x"
+
+size mmc 1:1 initramfs-lts
+load mmc 1:1 ${ramdisk_addr_r} initramfs-lts
+load mmc 1:1 ${kernel_addr_r} vmlinuz-lts
+load mmc 1:1 ${fdt_addr_r} dtbs-lts/amlogic/meson-gxl-s905x-libretech-cc.dtb
+
+booti ${kernel_addr_r} ${ramdisk_addr_r}:$filesize ${fdtcontroladdr}

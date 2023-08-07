@@ -1,0 +1,2 @@
+## 3.17+ only has a single rpi image
+alpine-rpi:aarch64:3.17.3:rpi

@@ -85,9 +85,10 @@ function parse_yaml {
 }
 
 ## Interpret latest-releases.yaml and export variables
-function latest-releases() {
+function latest-releases() 
+{
 	if [ -z $1 ]; then
-		if [ -z $ALPINE_RELEASE ]; then
+		if [ -z $ALPINE_VERSION ]; then
 			printf 'No release provided!\n'
 			exit 1
 		fi
@@ -110,7 +111,7 @@ function latest-releases() {
 	## Load variables
 	parse_yaml latest-releases.yaml | grep ^${minrootprefix} | sed -e 's/^'${minrootprefix}'_//g' > /tmp/env
 
-	export ALPINE_VERSION=$(grep ^version /tmp/env | cut -d = -f 2 | sed -e 's/"//g')
+	export ALPINE_RELEASE=$(grep ^version /tmp/env | cut -d = -f 2 | sed -e 's/"//g')
 	export ALPINE_FILE=$(grep ^file /tmp/env | cut -d = -f 2 | sed -e 's/"//g')
 	export ALPINE_SHA256=$(grep ^sha256 /tmp/env | cut -d = -f 2 | sed -e 's/"//g')
 	export ALPINE_SHA512=$(grep ^sha512 /tmp/env | cut -d = -f 2 | sed -e 's/"//g')
